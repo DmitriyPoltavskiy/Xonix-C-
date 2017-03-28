@@ -4,8 +4,8 @@
 using namespace sf;
 
 class Field {
-	static const int WIDTH = 80;
-	static const int HEIGHT = 60;
+	static const int WIDTH = 70;
+	static const int HEIGHT = 50;
 
 	Vector2u _windowSize;
 
@@ -57,8 +57,6 @@ public:
 						Vector2f(x * _distanceBetweenCells + _xOffset, 
 								 y * _distanceBetweenCells + _yOffset)
 					);
-
-
 				renderWindow.draw(_field[x][y]);
 			}
 		}
@@ -78,8 +76,7 @@ class Xonix {
 		_y,
 		_direction;
 
-	bool _inSea,
-		_inLand;
+	bool _inSea;
 
 	Color _trackColor = Color(144, 18, 144);
 
@@ -97,7 +94,6 @@ public:
 		_y = _field->_yOffset;
 
 		_inSea = false;
-		_inLand = true;
 
 		_xonixTexture.loadFromFile(_pathToTexture);
 		_xonix.setTexture(_xonixTexture);
@@ -128,22 +124,10 @@ public:
 
 	void Move(RenderWindow &renderWindow) {
 		// Calculate position
-		switch (_direction) {
-		case 1:
-			_x += _field->_distanceBetweenCells;
-			break;
-		case -1:
-			_x -= _field->_distanceBetweenCells;
-			break;
-		case 2:
-			_y += _field->_distanceBetweenCells;
-			break;
-		case -2:
-			_y -= _field->_distanceBetweenCells;
-			break;
-		default:
-			break;
-		}
+		if (_direction == 1) _x += _field->_distanceBetweenCells;
+		if (_direction == -1) _x -= _field->_distanceBetweenCells;
+		if (_direction == 2) _y += _field->_distanceBetweenCells;
+		if (_direction == -2) _y -= _field->_distanceBetweenCells;
 
 		// Fixed borders
 		if (_x < _field->_xOffset) {
@@ -164,16 +148,40 @@ public:
 		}
 
 		// Track
-		if (_field->_field[_x / 10][_y / 10].getFillColor() == _field->GetSeaColor()) {
-			_field->_field[_x / 10][_y / 10].setFillColor(_trackColor);
-			_field->_field[_x / 10][_y / 10].setSize(Vector2f(_field->_distanceBetweenCells, _field->_distanceBetweenCells));
-			//renderWindow.draw(_field->_field[_x / 10][_y / 10]);
+		if (_field->_field[(_x - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10]
+			.getFillColor() == _field->GetLandColor() && _inSea) {
+			_direction = 0;
 		}
+		if (_field->_field[(_x - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10]
+			.getFillColor() == _field->GetSeaColor()) {
 
-		std::cout << "x: " << _x << "\t" << "y: " << _y << "\n";
+			_inSea = true;
+
+			_field->_field[(_x - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10]
+				.setFillColor(_trackColor);
+
+			_field->_field[(_x - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10]
+				.setSize(Vector2f(_field->_distanceBetweenCells, _field->_distanceBetweenCells));
+		}
 
 		// Update position
 		_xonix.setPosition(_x, _y);
+	}
+
+	void SetInSea(bool inSea) {
+		_inSea = inSea;
+	}
+
+	int GetX() {
+		return _x;
+	}
+
+	int GetY() {
+		return _y;
+	}
+
+	bool XonixInSea() {
+		return _inSea;
 	}
 };
 
@@ -183,9 +191,17 @@ class SeaEnemy {
 		_x,
 		_y;
 
+	int _score,
+		_currentSeaArea;
+
 	Texture _seaEnemyTexture;
 	Sprite _seaEnemy;
 	String _pathToTexture = "Images/enemy_in_sea.png";
+
+	Color _landColor = Color(0, 168, 168);
+	Color _trackColor = Color(144, 18, 144);
+	Color _seaColor = Color(0, 0, 0);
+	Color _tempColor = Color(1, 1, 1);
 
 	Field *_field;
 
@@ -197,13 +213,12 @@ public:
 		_dx = rand() % 2 == 0 ? -10 : 10;
 		_dy = rand() % 2 == 0 ? -10 : 10;
 
-		_x = (2 + rand() % (_field->GetWidth() / 10 - 3)) * 10;
-		_y = (2 + rand() % (_field->GetHeight() / 10 - 3)) * 10;
+		_x = ((2 + rand() % (_field->GetWidth() / 10 - 3)) * 10) + _field->_xOffset;
+		_y = ((2 + rand() % (_field->GetHeight() / 10 - 3)) * 10) + _field->_yOffset;
 
 		_seaEnemyTexture.loadFromFile(_pathToTexture);
 		_seaEnemy.setTexture(_seaEnemyTexture);
 		_seaEnemy.setPosition(_x, _y);
-
 	}
 
 	void Init() {
@@ -216,8 +231,10 @@ public:
 	}
 
 	void UpdateDirection() {
-		if (_field->_field[(_x / 10) + (_dx / 10)][_y / 10].getFillColor() == _field->GetLandColor()) _dx = -_dx;
-		if (_field->_field[_x / 10][(_y / 10) + (_dy / 10)].getFillColor() == _field->GetLandColor()) _dy = -_dy;
+		if (_field->_field[(_x + _dx - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10]
+			.getFillColor() == _field->GetLandColor()) _dx = -_dx;
+		if (_field->_field[(_x - _field->_xOffset) / 10][(_y + _dy - _field->_yOffset) / 10]
+			.getFillColor() == _field->GetLandColor()) _dy = -_dy;
 	}
 
 	void Move() {
@@ -226,6 +243,46 @@ public:
 		_y += _dy;
 
 		_seaEnemy.setPosition(_x, _y);
+	}
+
+	int GetX() {
+		return _x;
+	}
+
+	int GetY() {
+		return _y;
+	}
+
+	void FillArea(int x, int y) {
+		if (_field->_field[(x - _field->_xOffset) / 10][(y - _field->_yOffset) / 10].getFillColor() != _seaColor ||
+			_field->_field[(x - _field->_xOffset) / 10][(y - _field->_yOffset) / 10].getFillColor() == _tempColor) {
+			return;
+		}
+
+		_field->_field[(x - _field->_xOffset) / 10][(y - _field->_yOffset) / 10].setFillColor(_tempColor);
+
+		if (_field->_field[(x + 10 - _field->_xOffset) / 10][(y - _field->_yOffset) / 10].getFillColor() == _seaColor) FillArea(x + 10, y);
+		if (_field->_field[(x - 10 - _field->_xOffset) / 10][(y - _field->_yOffset) / 10].getFillColor() == _seaColor) FillArea(x - 10, y);
+		if (_field->_field[(x - _field->_xOffset) / 10][(y + 10 - _field->_yOffset) / 10].getFillColor() == _seaColor) FillArea(x, y + 10);
+		if (_field->_field[(x - _field->_xOffset) / 10][(y - 10 - _field->_yOffset) / 10].getFillColor() == _seaColor) FillArea(x, y - 10);
+	}
+
+	void FillTrackArea() {
+		_currentSeaArea = 0;
+
+		FillArea(_x, _y);
+
+		for (int y = 0; y < _field->GetHeight(); y += 10)
+			for (int x = 0; x < _field->GetWidth(); x += 10) {
+				if (_field->_field[x / 10][y / 10].getFillColor() == _trackColor || _field->_field[x / 10][y / 10].getFillColor() == _seaColor) {
+					_field->_field[x / 10][y / 10].setFillColor(_landColor);
+					_score++;
+				}
+				if (_field->_field[x / 10][y / 10].getFillColor() == _tempColor) {
+					_field->_field[x / 10][y / 10].setFillColor(_seaColor);
+					_currentSeaArea++;
+				}
+			}
 	}
 };
 
@@ -247,23 +304,20 @@ public:
 	LandEnemy(Field *field) {
 		srand(time(NULL));
 		_field = field;
-/*
+
 		_dx = rand() % 2 == 0 ? -10 : 10;
-		_dy = rand() % 2 == 0 ? -10 : 10;*/
+		_dy = -10;
 
-		_dx = -10;
-		_dy = 10;
+		do {
+			_x = ((0 + rand() % (_field->GetWidth() / 10 - 1)) * 10) + _field->_xOffset;
+			_y = ((((_field->GetHeight() / 10) - 3) + rand() % ((_field->GetHeight() / 10) - 1)) * 10) + _field->_yOffset;
+		}
+		while (_field->_field[(_x - _field->_xOffset) / 10, (_y - _field->_yOffset) / 10]->getFillColor() == _field->GetSeaColor());
 
-		_x = 20;
-		_y = 0;
-/*
-		_x = (2 + rand() % (_field->GetWidth() / 10 - 3)) * 10;
-		_y = (2 + rand() % (_field->GetHeight() / 10 - 3)) * 10;*/
 
 		_landEnemyTexture.loadFromFile(_pathToTexture);
 		_landEnemy.setTexture(_landEnemyTexture);
 		_landEnemy.setPosition(_x, _y);
-
 	}
 
 	void Init() {
@@ -283,11 +337,11 @@ public:
 		if (_y > _field->_yOffset + _field->GetHeight() - _field->_distanceBetweenCells)
 			_y = _field->_yOffset + _field->GetHeight() - _field->_distanceBetweenCells;
 
-		if (_x <= 0 || _x >= (_field->GetWidth() - 10)) _dx = -_dx;
-		if (_y <= 0 || _y >= (_field->GetHeight() - 10)) _dy = -_dy;
+		if (_x <= _field->_xOffset || _x >= (_field->GetWidth() - 10 + _field->_xOffset)) _dx = -_dx;
+		if (_y <= +_field->_yOffset || _y >= (_field->GetHeight() - 10 + _field->_yOffset)) _dy = -_dy;
 
-		if (_field->_field[(_x / 10) + (_dx / 10)][_y / 10].getFillColor() == _field->GetSeaColor() || _field->_field[(_x / 10) + (_dx / 10)][_y / 10].getFillColor() == _trackColor) _dx = -_dx;
-		if (_field->_field[_x / 10][(_y / 10) + (_dy / 10)].getFillColor() == _field->GetSeaColor() || _field->_field[_x / 10][(_y / 10) + (_dy / 10)].getFillColor() == _trackColor) _dy = -_dy;
+		if (_field->_field[(_x + _dx - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _field->GetSeaColor()/* || _field->_field[(_x + _dx - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _trackColor*/) _dx = -_dx;
+		if (_field->_field[(_x - _field->_xOffset) / 10][(_y + _dy - _field->_yOffset) / 10].getFillColor() == _field->GetSeaColor()/* || _field->_field[(_x - _field->_xOffset) / 10][(_y + _dy - _field->_yOffset) / 10].getFillColor() == _trackColor*/) _dy = -_dy;
 	}
 
 	void Move() {
@@ -309,16 +363,10 @@ int main() {
 	SeaEnemy seaEnemy(field);
 	LandEnemy landEnemy(field);
 	
-	/*
-	#include <vector>*/
-
 	bool start = false;
 
 	while (window.isOpen())
 	{
-		/*std::vector<Xonix*> dd;
-		dd.push_back(&xonix);
-*/
 		Event event;
 		while (window.pollEvent(event))
 		{
@@ -329,7 +377,7 @@ int main() {
 		}
 
 
-		//window.clear();
+		window.clear();
 
 		// Init
 		if (!start) {
@@ -338,6 +386,12 @@ int main() {
 			xonix.Init();
 			seaEnemy.Init();
 			landEnemy.Init();
+		}
+
+		// Conditions
+		if (field->_field[(xonix.GetX() - field->_xOffset) / 10][(xonix.GetY() - field->_yOffset) / 10].getFillColor() == field->GetLandColor() && xonix.XonixInSea()) {
+			seaEnemy.FillTrackArea();
+			xonix.SetInSea(false);
 		}
 
 		// Draw
