@@ -4,8 +4,8 @@
 using namespace sf;
 
 class Field {
-	static const int WIDTH = 70;
-	static const int HEIGHT = 50;
+	static const int WIDTH = 60;
+	static const int HEIGHT = 40;
 
 	Vector2u _windowSize;
 
@@ -298,29 +298,38 @@ class LandEnemy {
 
 	Field *_field;
 
+	Color _seaColor = Color(0, 0, 0);
 	Color _trackColor = Color(144, 18, 144);
 
 public:
 	LandEnemy(Field *field) {
-		srand(time(NULL));
 		_field = field;
+	}
+
+	void Init() {
+		srand(time(NULL));
 
 		_dx = rand() % 2 == 0 ? -10 : 10;
-		_dy = -10;
+		_dy = rand() % 2 == 0 ? -10 : 10;
+		//_dy = -10;
+		
+		while (true) {
+			_x = rand() % (_field->GetWidth() / 10) + (_field->_xOffset / 10);
+			_x *= 10;
 
-		do {
-			_x = ((0 + rand() % (_field->GetWidth() / 10 - 1)) * 10) + _field->_xOffset;
-			_y = ((((_field->GetHeight() / 10) - 3) + rand() % ((_field->GetHeight() / 10) - 1)) * 10) + _field->_yOffset;
+			_y = rand() % (_field->GetHeight() / 10) + (_field->_yOffset / 10);
+			_y *= 10;
+			if (_x < (20 + _field->_xOffset) || _x > (_field->GetWidth() - 30 + _field->_xOffset) || _y < (20 + _field->_yOffset) /*|| _y > (_field->GetHeight() - 30 + _field->_yOffset)*/) {
+				std::cout << "x:" << _x << "\t";
+				std::cout << "y:" << _y << "\n";
+				break;
+			}
 		}
-		while (_field->_field[(_x - _field->_xOffset) / 10, (_y - _field->_yOffset) / 10]->getFillColor() == _field->GetSeaColor());
-
 
 		_landEnemyTexture.loadFromFile(_pathToTexture);
 		_landEnemy.setTexture(_landEnemyTexture);
 		_landEnemy.setPosition(_x, _y);
-	}
 
-	void Init() {
 		_landEnemy.setScale(_field->_distanceBetweenCells / (float)_landEnemyTexture.getSize().x,
 			_field->_distanceBetweenCells / (float)_landEnemyTexture.getSize().y);
 	}
@@ -331,7 +340,7 @@ public:
 
 	void UpdateDirection() {
 		if (_x < _field->_xOffset) _x = _field->_xOffset;
-		if (_x > _field->_xOffset + _field->GetWidth() - _field->_distanceBetweenCells) 
+		if (_x > _field->_xOffset + _field->GetWidth() - _field->_distanceBetweenCells)
 			_x = _field->_xOffset + _field->GetWidth() - _field->_distanceBetweenCells;
 		if (_y < _field->_yOffset) _y = _field->_yOffset;
 		if (_y > _field->_yOffset + _field->GetHeight() - _field->_distanceBetweenCells)
@@ -358,11 +367,16 @@ int main() {
 	RenderWindow window(VideoMode(800, 600), "Xonix");
 	window.setFramerateLimit(30); // Temporary solution
 
+
 	Field *field = new Field(window);
 	Xonix xonix(field);
 	SeaEnemy seaEnemy(field);
 	LandEnemy landEnemy(field);
-	
+	Thread fillAreaThread(&SeaEnemy::FillTrackArea, &seaEnemy);
+	Thread landEnemyPositionThread(&LandEnemy::Init, &landEnemy);
+
+	//Message message(window);
+
 	bool start = false;
 
 	while (window.isOpen())
@@ -385,12 +399,12 @@ int main() {
 			field->Init(window);
 			xonix.Init();
 			seaEnemy.Init();
-			landEnemy.Init();
+			landEnemyPositionThread.launch();
 		}
 
 		// Conditions
 		if (field->_field[(xonix.GetX() - field->_xOffset) / 10][(xonix.GetY() - field->_yOffset) / 10].getFillColor() == field->GetLandColor() && xonix.XonixInSea()) {
-			seaEnemy.FillTrackArea();
+			fillAreaThread.launch();
 			xonix.SetInSea(false);
 		}
 
