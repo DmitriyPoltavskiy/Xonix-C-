@@ -1,11 +1,20 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include <string> 
+#include <sstream>
 
 using namespace sf;
 
+template <typename T>
+std::string toString(T val) {
+	std::ostringstream oss;
+	oss << val;
+	return oss.str();
+}
+
 class Field {
-	static const int WIDTH = 60;
-	static const int HEIGHT = 40;
+	static const int WIDTH = 70;
+	static const int HEIGHT = 50;
 
 	Vector2u _windowSize;
 
@@ -17,13 +26,15 @@ public:
 	int _distanceBetweenCells = 10;
 	int _xOffset, _yOffset;
 
-	Field() {}
-
 	Field(RenderWindow &renderWindow) {
 		_windowSize = renderWindow.getSize();
 		_xOffset = (_windowSize.x - WIDTH * _distanceBetweenCells) / 2;
 		_yOffset = (_windowSize.y - HEIGHT * _distanceBetweenCells) / 2;
 	};
+
+	Vector2u GetWindowSize() {
+		return _windowSize;
+	}
 
 	int GetWidth() {
 		return WIDTH * _distanceBetweenCells;
@@ -90,7 +101,10 @@ public:
 	Xonix(Field *field) {
 		_field = field;
 		
-		_x = _field->_xOffset + (field->GetWidth() / 2.);
+	};
+
+	void Init() {
+		_x = _field->_xOffset + (_field->GetWidth() / 2.);
 		_y = _field->_yOffset;
 
 		_inSea = false;
@@ -100,9 +114,6 @@ public:
 		_xonix.setPosition(_x, _y);
 
 		_direction = 0;
-	};
-
-	void Init() {
 		_xonix.setScale(_field->_distanceBetweenCells / (float)_xonixTexture.getSize().x, 
 						_field->_distanceBetweenCells / (float)_xonixTexture.getSize().y);
 	}
@@ -253,6 +264,20 @@ public:
 		return _y;
 	}
 
+	float GetSeaPercent() {
+		float seaArea = (_field->GetWidth() / 10 - 4) * (_field->GetHeight() / 10 - 4);
+		float seaPercent = _currentSeaArea / seaArea * 100;
+		if (seaPercent == 0)
+			return 0;
+		if (_currentSeaArea == 0)
+			return 100;
+		return 100 - seaPercent;
+	}
+
+	int GetScore() {
+		return _score;
+	}
+
 	void FillArea(int x, int y) {
 		if (_field->_field[(x - _field->_xOffset) / 10][(y - _field->_yOffset) / 10].getFillColor() != _seaColor ||
 			_field->_field[(x - _field->_xOffset) / 10][(y - _field->_yOffset) / 10].getFillColor() == _tempColor) {
@@ -283,6 +308,7 @@ public:
 					_currentSeaArea++;
 				}
 			}
+		//std::cout << "seaArea: " << _currentSeaArea << "\n";
 	}
 };
 
@@ -302,7 +328,7 @@ class LandEnemy {
 	Color _trackColor = Color(144, 18, 144);
 
 public:
-	LandEnemy(Field *field) {
+	LandEnemy(Field *field/*, Xonix *xonix*/) {
 		_field = field;
 	}
 
@@ -311,20 +337,26 @@ public:
 
 		_dx = rand() % 2 == 0 ? -10 : 10;
 		_dy = rand() % 2 == 0 ? -10 : 10;
-		//_dy = -10;
-		
-		while (true) {
-			_x = rand() % (_field->GetWidth() / 10) + (_field->_xOffset / 10);
-			_x *= 10;
 
-			_y = rand() % (_field->GetHeight() / 10) + (_field->_yOffset / 10);
-			_y *= 10;
-			if (_x < (20 + _field->_xOffset) || _x > (_field->GetWidth() - 30 + _field->_xOffset) || _y < (20 + _field->_yOffset) /*|| _y > (_field->GetHeight() - 30 + _field->_yOffset)*/) {
-				std::cout << "x:" << _x << "\t";
-				std::cout << "y:" << _y << "\n";
-				break;
-			}
-		}
+		_x = (_field->GetWidth() / 2.) + _field->_xOffset;
+		_y = _field->GetHeight() + _field->_yOffset;
+
+		std::cout << "_x: " << _x << "\t_y: " << _y << "\n";
+
+		//_x = _field->_xOffset + (_field->GetWidth() / 2.);
+		
+		//while (true) {
+		//	_x = rand() % (_field->GetWidth() / 10) + (_field->_xOffset / 10);
+		//	_x *= 10;
+
+		//	_y = rand() % (_field->GetHeight() / 10) + (_field->_yOffset / 10);
+		//	_y *= 10;
+		//	if (_x < (20 + _field->_xOffset) || _x > (_field->GetWidth() - 30 + _field->_xOffset) || _y < (20 + _field->_yOffset) /*|| _y > (_field->GetHeight() - 30 + _field->_yOffset)*/) {
+		//		std::cout << "x:" << _x << "\t";
+		//		std::cout << "y:" << _y << "\n";
+		//		break;
+		//	}
+		//}
 
 		_landEnemyTexture.loadFromFile(_pathToTexture);
 		_landEnemy.setTexture(_landEnemyTexture);
@@ -349,8 +381,8 @@ public:
 		if (_x <= _field->_xOffset || _x >= (_field->GetWidth() - 10 + _field->_xOffset)) _dx = -_dx;
 		if (_y <= +_field->_yOffset || _y >= (_field->GetHeight() - 10 + _field->_yOffset)) _dy = -_dy;
 
-		if (_field->_field[(_x + _dx - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _field->GetSeaColor()/* || _field->_field[(_x + _dx - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _trackColor*/) _dx = -_dx;
-		if (_field->_field[(_x - _field->_xOffset) / 10][(_y + _dy - _field->_yOffset) / 10].getFillColor() == _field->GetSeaColor()/* || _field->_field[(_x - _field->_xOffset) / 10][(_y + _dy - _field->_yOffset) / 10].getFillColor() == _trackColor*/) _dy = -_dy;
+		if (_field->_field[(_x + _dx - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _field->GetSeaColor() || _field->_field[(_x + _dx - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _trackColor) _dx = -_dx;
+		if (_field->_field[(_x - _field->_xOffset) / 10][(_y + _dy - _field->_yOffset) / 10].getFillColor() == _field->GetSeaColor() || _field->_field[(_x - _field->_xOffset) / 10][(_y + _dy - _field->_yOffset) / 10].getFillColor() == _trackColor) _dy = -_dy;
 	}
 
 	void Move() {
@@ -362,22 +394,191 @@ public:
 	}
 };
 
+class Info {
+	Text _score;
+	Text _lvl;
+	Text _xn;
+	Text _full;
+	Font _font;
+	String _pathToFont;
+	Vector2i _position;
+	Color _fontColor = Color(144, 18, 144);
+
+	std::string _textScore;
+	std::string _textLvl;
+	std::string _textXn;
+	std::string _textFull;
+
+	Field *_field;
+public: 
+	Info(Field *field) {
+		_field = field;
+	}
+
+	void Init() {
+		SetDefaulValue();
+		//score += toString();
+
+		_position.x = 50;
+		_position.y = _field->GetWindowSize().y - 40;
+
+		//float distanceX = 
+
+		// init font
+		_pathToFont = "Fonts/joystix-monospace.ttf";
+		_font.loadFromFile(_pathToFont);
+
+		// init score
+		_score.setFont(_font);
+		_score.setString(_textScore);
+		_score.setCharacterSize(18);
+		_score.setFillColor(Color::White);
+		_score.setOutlineColor(_fontColor);
+		_score.setOutlineThickness(2);
+		_score.setPosition(_position.x, _position.y);
+		_position.x += _field->GetWindowSize().x / 5;
+
+		// init lvl
+		_lvl.setFont(_font);
+		_lvl.setString(_textLvl);
+		_lvl.setCharacterSize(18);
+		_lvl.setFillColor(Color::White);
+		_lvl.setOutlineColor(_fontColor);
+		_lvl.setOutlineThickness(2);
+		_lvl.setPosition(_position.x, _position.y);
+		_position.x += _field->GetWindowSize().x / 5;
+
+		// init xn
+		_xn.setFont(_font);
+		_xn.setString(_textXn);
+		_xn.setCharacterSize(18);
+		_xn.setFillColor(Color::White);
+		_xn.setOutlineColor(_fontColor);
+		_xn.setOutlineThickness(2);
+		_xn.setPosition(_position.x, _position.y);
+		_position.x += _field->GetWindowSize().x / 5;
+
+		// init full
+		_full.setFont(_font);
+		_full.setString(_textFull);
+		_full.setCharacterSize(18);
+		_full.setFillColor(Color::White);
+		_full.setOutlineColor(_fontColor);
+		_full.setOutlineThickness(2);
+		_full.setPosition(_position.x, _position.y);
+	}
+
+	void SetDefaulValue() {
+		_textScore = "Score: ";
+		_textFull = "Full: ";
+		_textLvl = "Lvl: ";
+		_textXn = "Xn: ";
+	}
+
+	void Draw(RenderWindow &renderWindow) {
+		renderWindow.draw(_score);
+		renderWindow.draw(_lvl);
+		renderWindow.draw(_xn);
+		renderWindow.draw(_full);
+	}
+
+	void DrawScore(int score, RenderWindow &renderWindow) {
+		std::string text = _textScore;
+		text += toString(score);
+		_score.setString(text);
+		renderWindow.draw(_score);
+	}
+
+	void DrawFull(int full, RenderWindow &renderWindow) {
+		std::string text = _textFull;
+		text += toString(full);
+		text += "%";
+		_full.setString(text);
+		renderWindow.draw(_full);
+	}
+
+	void DrawXn(int xn, RenderWindow &renderWindow) {
+		std::string text = _textXn;
+		text += toString(xn);
+		_xn.setString(text);
+		renderWindow.draw(_xn);
+	}
+
+	void DrawLevel(int level, RenderWindow &renderWindow) {
+		std::string text = _textLvl;
+		text += toString(level);
+		_lvl.setString(text);
+		renderWindow.draw(_lvl);
+	}
+
+	void Update() {
+		//_score = _score
+	}
+};
+enum GameStates {
+	START_GAME,
+	NEXT_LEVEL,
+	PAUSE,
+	PLAYING,
+	GAME_OVER,
+	LOST_LIVE,
+};
+
+class StateManager {
+	int _winLevelPercent = 60;
+
+	GameStates _gameStates = START_GAME;
+
+	Field* _field;
+	Xonix* _xonix;
+	SeaEnemy* _seaEnemy;
+	LandEnemy *_landEnemy;
+
+public:
+	StateManager(Field *field, Xonix *xonix, SeaEnemy *seaEnemy, LandEnemy *landEnemy) {
+		_field = field;
+		_xonix = xonix;
+		_seaEnemy = seaEnemy;
+		_landEnemy = landEnemy;
+	}
+
+	GameStates GetState() {
+		return _gameStates;
+	}
+	
+	void SetState(GameStates state) {
+		_gameStates = state;
+	}
+
+	void UpdateStates(RenderWindow &renderWindow) {
+		// Next level
+		if (_seaEnemy->GetSeaPercent() >= _winLevelPercent /*&& _gameStates != NEXT_LEVEL*/) {
+			/*std::cout << "work";
+			_gameStates == NEXT_LEVEL;
+*/
+			_field->Init(renderWindow);
+			_xonix->Init();
+			_seaEnemy->Init();
+			_landEnemy->Init();
+			_seaEnemy->FillTrackArea();
+			//_info.Init();
+		}
+	}
+};
 
 int main() {
 	RenderWindow window(VideoMode(800, 600), "Xonix");
 	window.setFramerateLimit(30); // Temporary solution
 
-
 	Field *field = new Field(window);
-	Xonix xonix(field);
-	SeaEnemy seaEnemy(field);
-	LandEnemy landEnemy(field);
-	Thread fillAreaThread(&SeaEnemy::FillTrackArea, &seaEnemy);
-	Thread landEnemyPositionThread(&LandEnemy::Init, &landEnemy);
+	Xonix *xonix = new Xonix(field);
+	SeaEnemy *seaEnemy = new SeaEnemy(field);
+	LandEnemy *landEnemy = new LandEnemy(field);
+	Thread fillAreaThread(&SeaEnemy::FillTrackArea, seaEnemy);
+	//Thread landEnemyPositionThread(&LandEnemy::Init, landEnemy);
+	Info info(field);
 
-	//Message message(window);
-
-	bool start = false;
+	StateManager stateManager(field, xonix, seaEnemy, landEnemy);
 
 	while (window.isOpen())
 	{
@@ -386,41 +587,55 @@ int main() {
 		{
 			if (event.type == Event::Closed || Keyboard::isKeyPressed(Keyboard::Escape))
 				window.close();
-			
-			xonix.SetDirection();
-		}
 
+			xonix->SetDirection();
+		}
 
 		window.clear();
 
+		// Update states
+		stateManager.UpdateStates(window);
+
 		// Init
-		if (!start) {
-			start = true;
+		if (stateManager.GetState() == START_GAME /*|| stateManager.GetState() == NEXT_LEVEL*/) {
+			std::cout << "init";
+			stateManager.SetState(PLAYING);
+
 			field->Init(window);
-			xonix.Init();
-			seaEnemy.Init();
-			landEnemyPositionThread.launch();
+			xonix->Init();
+			seaEnemy->Init();
+			landEnemy->Init();
+			info.Init();
+			//landEnemyPositionThread.launch();
 		}
 
 		// Conditions
-		if (field->_field[(xonix.GetX() - field->_xOffset) / 10][(xonix.GetY() - field->_yOffset) / 10].getFillColor() == field->GetLandColor() && xonix.XonixInSea()) {
+		if (field->_field[(xonix->GetX() - field->_xOffset) / 10][(xonix->GetY() - field->_yOffset) / 10].getFillColor() == field->GetLandColor() && xonix->XonixInSea()) {
 			fillAreaThread.launch();
-			xonix.SetInSea(false);
+			xonix->SetInSea(false);
 		}
 
 		// Draw
+		//info.Draw(window);
+		info.DrawScore(seaEnemy->GetScore(), window);
+		info.DrawFull(seaEnemy->GetSeaPercent(), window);
+
 		field->Draw(window);
-		xonix.Draw(window);
-		seaEnemy.Draw(window);
-		landEnemy.Draw(window);
+		xonix->Draw(window);
+		seaEnemy->Draw(window);
+		landEnemy->Draw(window);
 
 		// Move
-		xonix.Move(window);
-		seaEnemy.Move();
-		landEnemy.Move();
+		if (stateManager.GetState() != GAME_OVER && stateManager.GetState() != PAUSE) {
+			xonix->Move(window);
+			seaEnemy->Move();
+			landEnemy->Move();
+		}
 
 		window.display();
 	}
 
 	return 0;
 }
+
+
