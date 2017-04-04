@@ -55,10 +55,19 @@ public:
 		return _seaColor;
 	}
 
+	void ClearTrack() {
+		for (int x = 0; x < WIDTH; x++) {
+			for (int y = 0; y < HEIGHT; y++) {
+				if (_field[x][y].getFillColor() == _trackColor) {
+					_field[x][y].setFillColor(_seaColor);
+				}
+			}
+		}
+	}
+
 	void Init(RenderWindow &renderWindow) {
 		for (int x = 0; x < WIDTH; x++) {
 			for (int y = 0; y < HEIGHT; y++) {
-
 				_field[x][y].setSize(Vector2f(_distanceBetweenCells, _distanceBetweenCells));
 
 				if (x < 2 || x > WIDTH - 3 || y < 2 || y > HEIGHT - 3)
@@ -71,7 +80,6 @@ public:
 						Vector2f(x * _distanceBetweenCells + _xOffset,
 							y * _distanceBetweenCells + _yOffset)
 					);
-				renderWindow.draw(_field[x][y]);
 			}
 		}
 	}
@@ -93,7 +101,8 @@ class Xonix {
 		_direction;
 
 	int _score,
-		_currentSeaArea;
+		_currentSeaArea,
+		_countLives = 3;
 
 	bool _inSea;
 	bool _isSelfCross;
@@ -124,7 +133,17 @@ public:
 
 	void FillTrackArea();
 
+	void ResetScore();
+
+	void ResetSeaArea();
+
 	void SetInSea(bool);
+
+	void ResetCountLives(int);
+
+	void DecreaseLive();
+
+	void IncreaseLive();
 
 	int GetX();
 
@@ -135,8 +154,10 @@ public:
 	bool GetIsSelfCross();
 
 	float GetSeaPercent();
-	
+
 	int GetScore();
+
+	int GetCountLives();
 };
 
 class SeaEnemy {
@@ -144,9 +165,6 @@ class SeaEnemy {
 		_dy,
 		_x,
 		_y;
-
-	//int /*_score,*/
-	//	_currentSeaArea;
 
 	Texture _seaEnemyTexture;
 	Sprite _seaEnemy;
@@ -161,10 +179,9 @@ class SeaEnemy {
 	Xonix *_xonix;
 
 public:
-	SeaEnemy(Field *field/*, Xonix *xonix*/) {
+	SeaEnemy(Field *field) {
 		srand(time(NULL));
 		_field = field;
-		//_xonix = xonix;
 
 		_dx = rand() % 2 == 0 ? -10 : 10;
 		_dy = rand() % 2 == 0 ? -10 : 10;
@@ -198,8 +215,6 @@ public:
 		_x += _dx;
 		_y += _dy;
 
-		IsHitTrackOrXonix();
-
 		_seaEnemy.setPosition(_x, _y);
 	}
 
@@ -215,21 +230,8 @@ public:
 		_xonix = xonix;
 	}
 
-	/*float GetSeaPercent() {
-		float seaArea = (_field->GetWidth() / 10 - 4) * (_field->GetHeight() / 10 - 4);
-		float seaPercent = _currentSeaArea / seaArea * 100;
-		if (seaPercent == 0)
-			return 0;
-		return 100 - seaPercent;
-	}*/
-/*
-	int GetScore() {
-		return _score;
-	}*/
-
-
 	bool IsHitTrackOrXonix() {
-		if (_field->_field[(_x + _dx - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _trackColor)	return true;
+		if (_field->_field[(_x - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _trackColor)	return true;
 		if (_x + _dx == _xonix->GetX() && _y + _dy == _xonix->GetY()) return true;
 		return false;
 	}
@@ -237,8 +239,8 @@ public:
 
 
 Xonix::Xonix(Field *field, SeaEnemy *seaEnemy) {
-		_field = field;
-		_seaEnemy = seaEnemy;
+	_field = field;
+	_seaEnemy = seaEnemy;
 }
 
 void Xonix::Init() {
@@ -260,6 +262,18 @@ void Xonix::Draw(RenderWindow &renderWindow) {
 	renderWindow.draw(_xonix);
 }
 
+int Xonix::GetCountLives() {
+	return _countLives;
+}
+
+void Xonix::ResetSeaArea() {
+	_currentSeaArea = 0;
+}
+
+void Xonix::ResetScore() {
+	_score = 0;
+}
+
 void Xonix::SetDirection() {
 	if (Keyboard::isKeyPressed(Keyboard::Right))
 		_direction = 1;
@@ -269,6 +283,18 @@ void Xonix::SetDirection() {
 		_direction = -2;
 	if (Keyboard::isKeyPressed(Keyboard::Down))
 		_direction = 2;
+}
+
+void Xonix::ResetCountLives(int count) {
+	_countLives = count;
+}
+
+void Xonix::DecreaseLive() {
+	_countLives--;
+}
+
+void Xonix::IncreaseLive() {
+	_countLives++;
 }
 
 void Xonix::Move(RenderWindow &renderWindow) {
@@ -346,9 +372,7 @@ void Xonix::FillArea(int x, int y) {
 
 void Xonix::FillTrackArea() {
 	_currentSeaArea = 0;
-	///////////////////////////////////////////////
 	FillArea(_seaEnemy->GetX(), _seaEnemy->GetY());
-	///////////////////////////////////////////////
 
 	for (int y = 0; y < _field->GetHeight(); y += 10)
 		for (int x = 0; x < _field->GetWidth(); x += 10) {
@@ -392,7 +416,7 @@ float Xonix::GetSeaPercent() {
 }
 
 int Xonix::GetScore() {
-return _score;
+	return _score;
 }
 
 class LandEnemy {
@@ -428,23 +452,6 @@ public:
 
 		_x = (_field->GetWidth() / 2.) + _field->_xOffset;
 		_y = _field->GetHeight() + _field->_yOffset;
-
-		//std::cout << "_x: " << _x << "\t_y: " << _y << "\n";
-
-		//_x = _field->_xOffset + (_field->GetWidth() / 2.);
-
-		//while (true) {
-		//	_x = rand() % (_field->GetWidth() / 10) + (_field->_xOffset / 10);
-		//	_x *= 10;
-
-		//	_y = rand() % (_field->GetHeight() / 10) + (_field->_yOffset / 10);
-		//	_y *= 10;
-		//	if (_x < (20 + _field->_xOffset) || _x > (_field->GetWidth() - 30 + _field->_xOffset) || _y < (20 + _field->_yOffset) /*|| _y > (_field->GetHeight() - 30 + _field->_yOffset)*/) {
-		//		std::cout << "x:" << _x << "\t";
-		//		std::cout << "y:" << _y << "\n";
-		//		break;
-		//	}
-		//}
 
 		_landEnemyTexture.loadFromFile(_pathToTexture);
 		_landEnemy.setTexture(_landEnemyTexture);
@@ -482,15 +489,15 @@ public:
 	}
 
 	bool IsHitXonix() {
-		//if (_x == _xonix->GetX() && _y == _xonix->GetY()) return true;
-		if (_x + _dx == _xonix->GetX() && _y + _dy == _xonix->GetY()) return true;
-		if (_x + _dx == _xonix->GetX() && _y == _xonix->GetY()) return true;
-		if (_x == _xonix->GetX() && _y + _dy == _xonix->GetY()) return true;
+		if (_x == _xonix->GetX() && _y == _xonix->GetY()) return true;
 		return false;
 	}
 };
 
 class Info {
+	Text _gameStart;
+	Text _gameOver;
+	Text _hint;
 	Text _score;
 	Text _lvl;
 	Text _xn;
@@ -500,6 +507,9 @@ class Info {
 	Vector2i _position;
 	Color _fontColor = Color(144, 18, 144);
 
+	std::string _textGameStart;
+	std::string _textGameOver;
+	std::string _textHint;
 	std::string _textScore;
 	std::string _textLvl;
 	std::string _textXn;
@@ -507,6 +517,9 @@ class Info {
 
 	Field *_field;
 
+	FloatRect gameStart;
+	FloatRect gameOver;
+	FloatRect hint;
 	FloatRect scoreRect;
 	FloatRect lvlRect;
 	FloatRect xnRect;
@@ -520,9 +533,6 @@ public:
 	void Init() {
 		SetDefaulValue();
 
-		_position.x = 50;
-		_position.y = _field->GetWindowSize().y - 40;
-
 		// init font
 		_pathToFont = "Fonts/joystix-monospace.ttf";
 		_font.loadFromFile(_pathToFont);
@@ -534,11 +544,6 @@ public:
 		_score.setFillColor(Color::White);
 		_score.setOutlineColor(_fontColor);
 		_score.setOutlineThickness(2);
-		_score.setPosition(_position.x, _position.y);
-		_position.x += _field->GetWindowSize().x / 5;
-
-		scoreRect = _score.getLocalBounds();
-		_score.setOrigin(scoreRect.width / 2, scoreRect.height / 2);
 
 		// init lvl
 		_lvl.setFont(_font);
@@ -547,11 +552,6 @@ public:
 		_lvl.setFillColor(Color::White);
 		_lvl.setOutlineColor(_fontColor);
 		_lvl.setOutlineThickness(2);
-		_lvl.setPosition(_position.x, _position.y);
-		_position.x += _field->GetWindowSize().x / 5;
-
-		lvlRect = _lvl.getLocalBounds();
-		_lvl.setOrigin(lvlRect.width / 2, lvlRect.height / 2);
 
 		// init xn
 		_xn.setFont(_font);
@@ -560,11 +560,6 @@ public:
 		_xn.setFillColor(Color::White);
 		_xn.setOutlineColor(_fontColor);
 		_xn.setOutlineThickness(2);
-		_xn.setPosition(_position.x, _position.y);
-		_position.x += _field->GetWindowSize().x / 5.;
-
-		xnRect = _xn.getLocalBounds();
-		_xn.setOrigin(xnRect.width / 2., xnRect.height / 2.);
 
 		// init full
 		_full.setFont(_font);
@@ -573,10 +568,43 @@ public:
 		_full.setFillColor(Color::White);
 		_full.setOutlineColor(_fontColor);
 		_full.setOutlineThickness(2);
-		_full.setPosition(_position.x, _position.y);
-		
-		fullRect = _full.getLocalBounds();
-		_full.setOrigin(fullRect.width / 2., fullRect.height / 2.);
+
+		// init game start
+		_textGameStart = "Start Game";
+		_gameStart.setFont(_font);
+		_gameStart.setString(_textGameStart);
+		_gameStart.setCharacterSize(55);
+		_gameStart.setFillColor(Color::White);
+		_gameStart.setOutlineColor(_fontColor);
+		_gameStart.setOutlineThickness(4);
+		gameStart = _gameStart.getLocalBounds();
+		_gameStart.setOrigin(gameStart.width / 2, gameStart.height * 1.5);
+		_gameStart.setPosition(_field->GetWindowSize().x / 2, _field->GetWindowSize().y / 2);
+
+		// init game over
+		_textGameOver = "Game Over";
+		_gameOver.setFont(_font);
+		_gameOver.setString(_textGameOver);
+		_gameOver.setCharacterSize(55);
+		_gameOver.setFillColor(Color::White);
+		_gameOver.setOutlineColor(_fontColor);
+		_gameOver.setOutlineThickness(4);
+		gameOver = _gameOver.getLocalBounds();
+		_gameOver.setOrigin(gameOver.width / 2, gameOver.height * 1.5);
+		_gameOver.setPosition(_field->GetWindowSize().x / 2, _field->GetWindowSize().y / 2);
+
+		// init hint
+		_textHint = "Press 'space' for start";
+		_hint.setFont(_font);
+		_hint.setString(_textHint);
+		_hint.setCharacterSize(18);
+		_hint.setFillColor(Color::White);
+		_hint.setOutlineColor(_fontColor);
+		_hint.setOutlineThickness(2);
+		hint = _hint.getLocalBounds();
+		_hint.setOrigin(hint.width / 2, hint.height / 2);
+		_hint.setPosition(_field->GetWindowSize().x / 2, (_field->GetWindowSize().y / 2) + hint.height);
+
 	}
 
 	void SetPosition(RenderWindow &renderWindow) {
@@ -586,36 +614,40 @@ public:
 		fullRect = _full.getLocalBounds();
 
 		float countTextElement = 4;
-		
-		float windowWidth = _field->GetWindowSize().x;
-		float fieldWidth = _field->GetWidth();
 
-		float offset = (windowWidth - fieldWidth) / 2.;
-		offset += scoreRect.width / 2.;
-		std::cout << "offset: " << offset << "\n";
+		float windowWidth = _field->GetWindowSize().x;
+		float windowHeight = _field->GetWindowSize().y;
+		float fieldWidth = _field->GetWidth();
+		float fieldHeight = _field->GetHeight();
+
+		float offsetX = (windowWidth - fieldWidth) / 2.;
+		offsetX += scoreRect.width / 2.;
+
+		float offsetY = (windowHeight - fieldWidth) / 2.;
+		float positionTextY = windowHeight + (offsetY / 2.);
 
 		float widthText = scoreRect.width + lvlRect.width + xnRect.width + fullRect.width;
 
 		float offsetText = (fieldWidth - widthText) / (countTextElement - 1);
 
 		// <-- score
-		float positionText = offset;
-		_score.setPosition(positionText, _position.y);
+		float positionTextX = offsetX;
+		_score.setPosition(positionTextX, positionTextY);
 		// -->
 
 		// <-- lvl
-		positionText += (scoreRect.width / 2.) + offsetText + (lvlRect.width / 2.);
-		_lvl.setPosition(positionText, _position.y);
+		positionTextX += (scoreRect.width / 2.) + offsetText + (lvlRect.width / 2.);
+		_lvl.setPosition(positionTextX, positionTextY);
 		// -->
 
 		// <-- xn
-		positionText += (lvlRect.width / 2.) + offsetText + (xnRect.width / 2.);
-		_xn.setPosition(positionText, _position.y);
+		positionTextX += (lvlRect.width / 2.) + offsetText + (xnRect.width / 2.);
+		_xn.setPosition(positionTextX, positionTextY);
 		// -->
 
 		// <-- xn
-		positionText += (xnRect.width / 2.) + offsetText + (fullRect.width / 2.);
-		_full.setPosition(positionText, _position.y);
+		positionTextX += (xnRect.width / 2.) + offsetText + (fullRect.width / 2.);
+		_full.setPosition(positionTextX, positionTextY);
 		// -->
 	}
 
@@ -626,13 +658,24 @@ public:
 		_textXn = "Xn: ";
 	}
 
+	void DrawGameStart(RenderWindow &renderWindow) {
+		renderWindow.draw(_gameStart);
+	}
+
+	void DrawGameOver(RenderWindow &renderWindow) {
+		renderWindow.draw(_gameOver);
+	}
+
+	void DrawHint(RenderWindow &renderWindow) {
+		renderWindow.draw(_hint);
+	}
+
 	void DrawScore(int score, RenderWindow &renderWindow) {
 		std::string text = _textScore;
 		text += toString(score);
 		_score.setString(text);
 		scoreRect = _score.getLocalBounds();
 		_score.setOrigin(scoreRect.width / 2, scoreRect.height / 2);
-		SetPosition(renderWindow);
 		renderWindow.draw(_score);
 	}
 
@@ -643,7 +686,6 @@ public:
 		_full.setString(text);
 		scoreRect = _full.getLocalBounds();
 		_full.setOrigin(scoreRect.width / 2, scoreRect.height / 2);
-		SetPosition(renderWindow);
 		renderWindow.draw(_full);
 	}
 
@@ -653,7 +695,6 @@ public:
 		_xn.setString(text);
 		scoreRect = _xn.getLocalBounds();
 		_xn.setOrigin(scoreRect.width / 2, scoreRect.height / 2);
-		SetPosition(renderWindow);
 		renderWindow.draw(_xn);
 	}
 
@@ -663,17 +704,17 @@ public:
 		_lvl.setString(text);
 		scoreRect = _lvl.getLocalBounds();
 		_lvl.setOrigin(scoreRect.width / 2, scoreRect.height / 2);
-		SetPosition(renderWindow);
 		renderWindow.draw(_lvl);
 	}
 };
 enum GameStates {
+	INIT_DEPENDENCIES,
 	START_GAME,
 	NEXT_LEVEL,
 	PAUSE,
 	PLAYING,
-	GAME_OVER,
 	LOST_LIVE,
+	GAME_OVER,
 	EMPTY_STATE
 };
 
@@ -681,7 +722,7 @@ class StateManager {
 	int _winLevelPercent = 60;
 	int _level = 1;
 
-	GameStates _gameStates = START_GAME;
+	GameStates _gameStates;
 	GameStates _prevState = EMPTY_STATE;
 
 	Field* _field;
@@ -701,6 +742,10 @@ public:
 		return _gameStates;
 	}
 
+	void ResetLevel() {
+		_level = 1;
+	}
+
 	void SetState(GameStates state) {
 		_gameStates = state;
 	}
@@ -710,6 +755,7 @@ public:
 		if (_xonix->GetSeaPercent() >= _winLevelPercent) {
 			_gameStates = NEXT_LEVEL;
 			_level++;
+			_xonix->IncreaseLive();
 
 			_field->Init(renderWindow);
 			_xonix->Init();
@@ -718,8 +764,19 @@ public:
 			_xonix->FillTrackArea();
 		}
 		// Game over
-		if (_xonix->GetIsSelfCross() || _seaEnemy->IsHitTrackOrXonix() || _landEnemy->IsHitXonix() && _gameStates != _prevState) {
+		if (_xonix->GetIsSelfCross() || 
+			_seaEnemy->IsHitTrackOrXonix() || 
+			_landEnemy->IsHitXonix() &&
+			_xonix->GetCountLives() >= 1 &&
+			_gameStates != _prevState) {
+			
 			// Once enter to condition
+			_gameStates = LOST_LIVE;
+			_prevState = _gameStates;
+			
+			_xonix->DecreaseLive();
+		}
+		if (_xonix->GetCountLives() <= 0 && _gameStates != _prevState) {
 			_gameStates = GAME_OVER;
 			_prevState = _gameStates;
 		}
@@ -742,6 +799,7 @@ int main() {
 	Info info(field);
 
 	StateManager stateManager(field, xonix, seaEnemy, landEnemy);
+	stateManager.SetState(INIT_DEPENDENCIES);
 
 	while (window.isOpen()) {
 		Event event;
@@ -749,7 +807,19 @@ int main() {
 			if (event.type == Event::Closed || Keyboard::isKeyPressed(Keyboard::Escape))
 				window.close();
 
-			xonix->SetDirection();
+			if (stateManager.GetState() == PLAYING)
+				xonix->SetDirection();
+
+			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == START_GAME)
+				stateManager.SetState(PLAYING);
+
+			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == GAME_OVER) {
+				field->Init(window);
+				seaEnemy->Init();
+				landEnemy->Init();
+				stateManager.SetState(PLAYING);
+			}
+
 		}
 
 		window.clear();
@@ -758,37 +828,73 @@ int main() {
 		stateManager.UpdateStates(window);
 
 		// Init
-		if (stateManager.GetState() == START_GAME) {
-			stateManager.SetState(PLAYING);
-
+		if (stateManager.GetState() == INIT_DEPENDENCIES) {
 			field->Init(window);
 			xonix->Init();
 			seaEnemy->Init();
 			landEnemy->Init();
 			info.Init();
+
+			stateManager.SetState(START_GAME);
 		}
 
-		// Draw
-		info.DrawScore(xonix->GetScore(), window);
-		info.DrawFull(xonix->GetSeaPercent(), window);
-		info.DrawXn(4, window);
-		info.DrawLevel(stateManager.GetLevel(), window);
+		// Start game
+		if (stateManager.GetState() == START_GAME) {
+			info.DrawGameStart(window);
+			info.DrawHint(window);
+		}
 
-		field->Draw(window);
-		xonix->Draw(window);
-		seaEnemy->Draw(window);
-		landEnemy->Draw(window);
+		// Draw entities
+		if (stateManager.GetState() != START_GAME && 
+			stateManager.GetState() != INIT_DEPENDENCIES &&
+			stateManager.GetState() != GAME_OVER) {
+			field->Draw(window);
+			xonix->Draw(window);
+			seaEnemy->Draw(window);
+			landEnemy->Draw(window);
+		}
+
+		// Draw text info
+		if (stateManager.GetState() != START_GAME && 
+			stateManager.GetState() != INIT_DEPENDENCIES &&
+			stateManager.GetState() != GAME_OVER) {
+			info.DrawScore(xonix->GetScore(), window);
+			info.DrawFull(xonix->GetSeaPercent(), window);
+			info.DrawXn(xonix->GetCountLives(), window);
+			info.DrawLevel(stateManager.GetLevel(), window);
+			info.SetPosition(window);
+		}
+
+		// Lost live
+		if (stateManager.GetState() == LOST_LIVE) {
+			xonix->Init();
+			field->ClearTrack();
+			landEnemy->Init();
+			sleep(milliseconds(1000));
+			stateManager.SetState(PLAYING);
+		}
 
 		// Move
-		if (stateManager.GetState() != GAME_OVER && stateManager.GetState() != PAUSE) {
+		if (stateManager.GetState() != START_GAME &&
+			stateManager.GetState() != INIT_DEPENDENCIES &&
+			stateManager.GetState() != GAME_OVER) {
+
 			xonix->Move(window);
 			seaEnemy->Move();
 			landEnemy->Move();
+		}
+
+		// Game Over
+		if (stateManager.GetState() == GAME_OVER) {
+			info.DrawGameOver(window);
+			info.DrawHint(window);
+			xonix->ResetCountLives(3);
+			xonix->ResetScore();
+			xonix->ResetSeaArea();
+			stateManager.ResetLevel();
 		}
 		window.display();
 	}
 
 	return 0;
 }
-
-
