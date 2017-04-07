@@ -118,8 +118,9 @@ class Xonix {
 
 	Field *_field;
 	SeaEnemy *_seaEnemy;
+	std::vector<SeaEnemy*>* _seaEnemies;
 public:
-	Xonix(Field*, SeaEnemy*);
+	Xonix(Field*, std::vector<SeaEnemy*>*);
 
 	void Init();
 
@@ -178,6 +179,8 @@ class SeaEnemy {
 	Field *_field;
 	Xonix *_xonix;
 
+	std::vector<SeaEnemy*>* _seaEnemies;
+
 public:
 	SeaEnemy(Field *field) {
 		srand(time(NULL));
@@ -199,6 +202,10 @@ public:
 			_field->_distanceBetweenCells / (float)_seaEnemyTexture.getSize().y);
 	}
 
+	void InitSeaEnemies(std::vector<SeaEnemy*>* seaEnemies) {
+		_seaEnemies = seaEnemies;
+	}
+
 	void Draw(RenderWindow &renderWindow) {
 		renderWindow.draw(_seaEnemy);
 	}
@@ -209,6 +216,10 @@ public:
 		if (_field->_field[(_x - _field->_xOffset) / 10][(_y + _dy - _field->_yOffset) / 10]
 			.getFillColor() == _field->GetLandColor()) _dy = -_dy;
 	}
+
+	//void InitSeaEnemies(std::vector<SeaEnemy*> seaEnemies) {
+		//_seaEnemies = seaEnemies;
+	//}
 
 	void Move() {
 		UpdateDirection();
@@ -235,12 +246,19 @@ public:
 		if (_x + _dx == _xonix->GetX() && _y + _dy == _xonix->GetY()) return true;
 		return false;
 	}
+
+	bool EnemiesHitTrackOrXonix() {
+		for (int i = 0; i < _seaEnemies->size(); i++)
+			if (_seaEnemies->at(i)->IsHitTrackOrXonix())
+				return true;
+		return false;
+	}
 };
 
 
-Xonix::Xonix(Field *field, SeaEnemy *seaEnemy) {
+Xonix::Xonix(Field *field, std::vector<SeaEnemy*>* seaEnemies) {
 	_field = field;
-	_seaEnemy = seaEnemy;
+	_seaEnemies = seaEnemies;
 }
 
 void Xonix::Init() {
@@ -372,7 +390,10 @@ void Xonix::FillArea(int x, int y) {
 
 void Xonix::FillTrackArea() {
 	_currentSeaArea = 0;
-	FillArea(_seaEnemy->GetX(), _seaEnemy->GetY());
+
+	for (int i = 0; i < _seaEnemies->size(); i++) {
+		FillArea(_seaEnemies->at(i)->GetX(), _seaEnemies->at(i)->GetY());
+	}
 
 	for (int y = 0; y < _field->GetHeight(); y += 10)
 		for (int x = 0; x < _field->GetWidth(); x += 10) {
@@ -408,7 +429,7 @@ bool Xonix::GetIsSelfCross() {
 }
 
 float Xonix::GetSeaPercent() {
-	float seaArea = (_field->GetWidth() / 10 - 4) * (_field->GetHeight() / 10 - 4);
+	float seaArea = (_field->GetWidth() / 6.) * (_field->GetHeight() / 6.);
 	float seaPercent = _currentSeaArea / seaArea * 100;
 	if (seaPercent == 0)
 		return 0;
@@ -578,8 +599,8 @@ public:
 		_gameStart.setOutlineColor(_fontColor);
 		_gameStart.setOutlineThickness(4);
 		gameStart = _gameStart.getLocalBounds();
-		_gameStart.setOrigin(gameStart.width / 2, gameStart.height * 1.5);
-		_gameStart.setPosition(_field->GetWindowSize().x / 2, _field->GetWindowSize().y / 2);
+		_gameStart.setOrigin(gameStart.width / 2.f, gameStart.height * 1.5f);
+		_gameStart.setPosition(_field->GetWindowSize().x / 2.f, _field->GetWindowSize().y / 2.f);
 
 		// init game over
 		_textGameOver = "Game Over";
@@ -590,8 +611,8 @@ public:
 		_gameOver.setOutlineColor(_fontColor);
 		_gameOver.setOutlineThickness(4);
 		gameOver = _gameOver.getLocalBounds();
-		_gameOver.setOrigin(gameOver.width / 2, gameOver.height * 1.5);
-		_gameOver.setPosition(_field->GetWindowSize().x / 2, _field->GetWindowSize().y / 2);
+		_gameOver.setOrigin(gameOver.width / 2.f, gameOver.height * 1.5f);
+		_gameOver.setPosition(_field->GetWindowSize().x / 2.f, _field->GetWindowSize().y / 2.f);
 
 		// init hint
 		_textHint = "Press 'space' for start";
@@ -602,8 +623,8 @@ public:
 		_hint.setOutlineColor(_fontColor);
 		_hint.setOutlineThickness(2);
 		hint = _hint.getLocalBounds();
-		_hint.setOrigin(hint.width / 2, hint.height / 2);
-		_hint.setPosition(_field->GetWindowSize().x / 2, (_field->GetWindowSize().y / 2) + hint.height);
+		_hint.setOrigin(hint.width / 2.f, hint.height / 2.f);
+		_hint.setPosition(_field->GetWindowSize().x / 2.f, (_field->GetWindowSize().y / 2.f) + hint.height);
 
 	}
 
@@ -620,11 +641,11 @@ public:
 		float fieldWidth = _field->GetWidth();
 		float fieldHeight = _field->GetHeight();
 
-		float offsetX = (windowWidth - fieldWidth) / 2.;
-		offsetX += scoreRect.width / 2.;
+		float offsetX = (windowWidth - fieldWidth) / 2.f;
+		offsetX += scoreRect.width / 2.f;
 
-		float offsetY = (windowHeight - fieldWidth) / 2.;
-		float positionTextY = windowHeight + (offsetY / 2.);
+		float offsetY = (windowHeight - fieldWidth) / 2.f;
+		float positionTextY = windowHeight + (offsetY / 2.f);
 
 		float widthText = scoreRect.width + lvlRect.width + xnRect.width + fullRect.width;
 
@@ -636,17 +657,17 @@ public:
 		// -->
 
 		// <-- lvl
-		positionTextX += (scoreRect.width / 2.) + offsetText + (lvlRect.width / 2.);
+		positionTextX += (scoreRect.width / 2.f) + offsetText + (lvlRect.width / 2.f);
 		_lvl.setPosition(positionTextX, positionTextY);
 		// -->
 
 		// <-- xn
-		positionTextX += (lvlRect.width / 2.) + offsetText + (xnRect.width / 2.);
+		positionTextX += (lvlRect.width / 2.f) + offsetText + (xnRect.width / 2.f);
 		_xn.setPosition(positionTextX, positionTextY);
 		// -->
 
 		// <-- xn
-		positionTextX += (xnRect.width / 2.) + offsetText + (fullRect.width / 2.);
+		positionTextX += (xnRect.width / 2.f) + offsetText + (fullRect.width / 2.f);
 		_full.setPosition(positionTextX, positionTextY);
 		// -->
 	}
@@ -728,13 +749,15 @@ class StateManager {
 	Field* _field;
 	Xonix* _xonix;
 	SeaEnemy* _seaEnemy;
+	std::vector<SeaEnemy*>* _seaEnemies;
 	LandEnemy *_landEnemy;
 
 public:
-	StateManager(Field *field, Xonix *xonix, SeaEnemy *seaEnemy, LandEnemy *landEnemy) {
+	StateManager(Field *field, Xonix *xonix, SeaEnemy *seaEnemy, std::vector<SeaEnemy*>* seaEnemies, LandEnemy *landEnemy) {
 		_field = field;
 		_xonix = xonix;
 		_seaEnemy = seaEnemy;
+		_seaEnemies = seaEnemies;
 		_landEnemy = landEnemy;
 	}
 
@@ -759,13 +782,19 @@ public:
 
 			_field->Init(renderWindow);
 			_xonix->Init();
-			_seaEnemy->Init();
+			//_seaEnemy->Init();
+
+			_seaEnemies->push_back(&SeaEnemy(_field));
+			_seaEnemy->InitSeaEnemies(_seaEnemies);
+
 			_landEnemy->Init();
 			_xonix->FillTrackArea();
+			_gameStates = PLAYING;
 		}
 		// Game over
 		if (_xonix->GetIsSelfCross() || 
-			_seaEnemy->IsHitTrackOrXonix() || 
+			//_seaEnemy->IsHitTrackOrXonix() || 
+			//_seaEnemy->EnemiesHitTrackOrXonix() ||
 			_landEnemy->IsHitXonix() &&
 			_xonix->GetCountLives() >= 1 &&
 			_gameStates != _prevState) {
@@ -792,13 +821,32 @@ int main() {
 	window.setFramerateLimit(30); // Temporary solution
 
 	Field *field = new Field(window);
+	///////////////////////////////////////////////////////////////////
+	std::vector<SeaEnemy*>* seaEnemies;
+
 	SeaEnemy *seaEnemy = new SeaEnemy(field);
-	Xonix *xonix = new Xonix(field, seaEnemy);
-	seaEnemy->SetXonix(xonix);
+	//sleep(milliseconds(1000));0
+	//SeaEnemy *seaEnemy2 = new SeaEnemy(field);
+
+	seaEnemies->push_back(seaEnemy);
+	//seaEnemy->InitSeaEnemies(seaEnemies);
+	//seaEnemies.push_back(seaEnemy2);
+
+	//////////////////////////////////////////////////////////////////
+	Xonix *xonix = new Xonix(field, seaEnemies);
+	//seaEnemy->SetXonix(xonix);
+	for (int i = 0; i < seaEnemies->size(); i++) {
+		seaEnemies->at(i)->SetXonix(xonix);
+	}
+	//seaEnemy->SetXonix(xonix);
+	//seaEnemy2->SetXonix(xonix);
+
+
+
 	LandEnemy *landEnemy = new LandEnemy(field, xonix);
 	Info info(field);
 
-	StateManager stateManager(field, xonix, seaEnemy, landEnemy);
+	StateManager stateManager(field, xonix, seaEnemy, seaEnemies, landEnemy);
 	stateManager.SetState(INIT_DEPENDENCIES);
 
 	while (window.isOpen()) {
@@ -813,9 +861,23 @@ int main() {
 			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == START_GAME)
 				stateManager.SetState(PLAYING);
 
+			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == PLAYING) {
+				for (int i = 0; i < seaEnemies->size(); i++) {
+					std::cout << "(" << i + 1 << "): X: " << seaEnemies->at(i)->GetX() << "\t";
+					std::cout << "(" << i + 1 << "): Y: " << seaEnemies->at(i)->GetY() << "\n\n";
+					std::cout << "(" << i + 1 << "): X: " << seaEnemies->at(i)->GetX() << "\t";
+					std::cout << "(" << i + 1 << "): Y: " << seaEnemies->at(i)->GetY() << "\n\n";
+					seaEnemies->at(i)->SetXonix(xonix);
+				}
+			}
+
 			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == GAME_OVER) {
 				field->Init(window);
-				seaEnemy->Init();
+
+				for (int i = 0; i < seaEnemies->size(); i++) {
+					seaEnemies->at(i)->Init();
+				}
+				//seaEnemy->Init();
 				landEnemy->Init();
 				stateManager.SetState(PLAYING);
 			}
@@ -831,7 +893,10 @@ int main() {
 		if (stateManager.GetState() == INIT_DEPENDENCIES) {
 			field->Init(window);
 			xonix->Init();
-			seaEnemy->Init();
+			for (int i = 0; i < seaEnemies->size(); i++) {
+				seaEnemies->at(i)->Init();
+			}
+			//seaEnemy->Init();
 			landEnemy->Init();
 			info.Init();
 
@@ -850,7 +915,10 @@ int main() {
 			stateManager.GetState() != GAME_OVER) {
 			field->Draw(window);
 			xonix->Draw(window);
-			seaEnemy->Draw(window);
+			for (int i = 0; i < seaEnemies->size(); i++) {
+				seaEnemies->at(i)->Draw(window);
+			}
+			//seaEnemy->Draw(window);
 			landEnemy->Draw(window);
 		}
 
@@ -880,7 +948,10 @@ int main() {
 			stateManager.GetState() != GAME_OVER) {
 
 			xonix->Move(window);
-			seaEnemy->Move();
+			//seaEnemy->Move();
+			for (int i = 0; i < seaEnemies->size(); i++) {
+				seaEnemies->at(i)->Move();
+			}
 			landEnemy->Move();
 		}
 
