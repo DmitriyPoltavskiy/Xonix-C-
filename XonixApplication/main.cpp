@@ -3,7 +3,7 @@
 #include <string> 
 #include <sstream>
 
-using namespace sf;
+//using namespace sf;
 
 template <typename T>
 std::string toString(T val) {
@@ -16,26 +16,26 @@ class Field {
 	static const int WIDTH = 70;
 	static const int HEIGHT = 50;
 
-	Vector2u _windowSize;
+	sf::Vector2u _windowSize;
 
-	Color _tempColor = Color(1, 1, 1);
-	Color _landColor = Color(0, 168, 168);
-	Color _seaColor = Color(0, 0, 0);
-	Color _trackColor = Color(144, 18, 144);
+	sf::Color _tempColor = sf::Color(1, 1, 1);
+	sf::Color _landColor = sf::Color(0, 168, 168);
+	sf::Color _seaColor = sf::Color(0, 0, 0);
+	sf::Color _trackColor = sf::Color(144, 18, 144);
 
 public:
-	RectangleShape _field[WIDTH][HEIGHT];
+	sf::RectangleShape _field[WIDTH][HEIGHT];
 
 	int _distanceBetweenCells = 10;
 	int _xOffset, _yOffset;
 
-	Field(RenderWindow &renderWindow) {
+	Field(sf::RenderWindow &renderWindow) {
 		_windowSize = renderWindow.getSize();
 		_xOffset = (_windowSize.x - WIDTH * _distanceBetweenCells) / 2;
 		_yOffset = (_windowSize.y - HEIGHT * _distanceBetweenCells) / 2;
 	};
 
-	Vector2u GetWindowSize() {
+	sf::Vector2u GetWindowSize() {
 		return _windowSize;
 	}
 
@@ -47,11 +47,11 @@ public:
 		return HEIGHT * _distanceBetweenCells;
 	}
 
-	Color GetLandColor() {
+	sf::Color GetLandColor() {
 		return _landColor;
 	}
 
-	Color GetSeaColor() {
+	sf::Color GetSeaColor() {
 		return _seaColor;
 	}
 
@@ -65,10 +65,10 @@ public:
 		}
 	}
 
-	void Init(RenderWindow &renderWindow) {
+	void Init(sf::RenderWindow &renderWindow) {
 		for (int x = 0; x < WIDTH; x++) {
 			for (int y = 0; y < HEIGHT; y++) {
-				_field[x][y].setSize(Vector2f(_distanceBetweenCells, _distanceBetweenCells));
+				_field[x][y].setSize(sf::Vector2f(_distanceBetweenCells, _distanceBetweenCells));
 
 				if (x < 2 || x > WIDTH - 3 || y < 2 || y > HEIGHT - 3)
 					_field[x][y].setFillColor(_landColor);
@@ -77,14 +77,14 @@ public:
 
 				_field[x][y]
 					.setPosition(
-						Vector2f(x * _distanceBetweenCells + _xOffset,
+						sf::Vector2f(x * _distanceBetweenCells + _xOffset,
 							y * _distanceBetweenCells + _yOffset)
 					);
 			}
 		}
 	}
 
-	void Draw(RenderWindow &renderWindow) {
+	void Draw(sf::RenderWindow &renderWindow) {
 		for (int x = 0; x < WIDTH; x++) {
 			for (int y = 0; y < HEIGHT; y++) {
 				renderWindow.draw(_field[x][y]);
@@ -107,27 +107,28 @@ class Xonix {
 	bool _inSea;
 	bool _isSelfCross;
 
-	Color _landColor = Color(0, 168, 168);
-	Color _trackColor = Color(144, 18, 144);
-	Color _seaColor = Color(0, 0, 0);
-	Color _tempColor = Color(1, 1, 1);
+	sf::Color _landColor = sf::Color(0, 168, 168);
+	sf::Color _trackColor = sf::Color(144, 18, 144);
+	sf::Color _seaColor = sf::Color(0, 0, 0);
+	sf::Color _tempColor = sf::Color(1, 1, 1);
 
-	Texture _xonixTexture;
-	Sprite _xonix;
-	String _pathToTexture = "Images/player_in_land.png";
+	sf::Texture _xonixTexture;
+	sf::Sprite _xonix;
+	sf::String _pathToTexture = "Images/player_in_land.png";
 
 	Field *_field;
 	SeaEnemy *_seaEnemy;
+	std::vector<SeaEnemy*>* _seaEnemies;
 public:
-	Xonix(Field*, SeaEnemy*);
+	Xonix(Field*, std::vector<SeaEnemy*>* seaEnemies);
 
 	void Init();
 
-	void Draw(RenderWindow&);
+	void Draw(sf::RenderWindow&);
 
 	void SetDirection();
 
-	void Move(RenderWindow&);
+	void Move(sf::RenderWindow&);
 
 	void FillArea(int, int);
 
@@ -166,14 +167,14 @@ class SeaEnemy {
 		_x,
 		_y;
 
-	Texture _seaEnemyTexture;
-	Sprite _seaEnemy;
-	String _pathToTexture = "Images/enemy_in_sea.png";
+	sf::Texture _seaEnemyTexture;
+	sf::Sprite _seaEnemy;
+	sf::String _pathToTexture = "Images/enemy_in_sea.png";
 
-	Color _landColor = Color(0, 168, 168);
-	Color _trackColor = Color(144, 18, 144);
-	Color _seaColor = Color(0, 0, 0);
-	Color _tempColor = Color(1, 1, 1);
+	sf::Color _landColor = sf::Color(0, 168, 168);
+	sf::Color _trackColor = sf::Color(144, 18, 144);
+	sf::Color _seaColor = sf::Color(0, 0, 0);
+	sf::Color _tempColor = sf::Color(1, 1, 1);
 
 	Field *_field;
 	Xonix *_xonix;
@@ -199,7 +200,7 @@ public:
 			_field->_distanceBetweenCells / (float)_seaEnemyTexture.getSize().y);
 	}
 
-	void Draw(RenderWindow &renderWindow) {
+	void Draw(sf::RenderWindow &renderWindow) {
 		renderWindow.draw(_seaEnemy);
 	}
 
@@ -238,9 +239,9 @@ public:
 };
 
 
-Xonix::Xonix(Field *field, SeaEnemy *seaEnemy) {
+Xonix::Xonix(Field *field, std::vector<SeaEnemy*>* seaEnemies) {
 	_field = field;
-	_seaEnemy = seaEnemy;
+	_seaEnemies = seaEnemies;
 }
 
 void Xonix::Init() {
@@ -258,7 +259,7 @@ void Xonix::Init() {
 		_field->_distanceBetweenCells / (float)_xonixTexture.getSize().y);
 }
 
-void Xonix::Draw(RenderWindow &renderWindow) {
+void Xonix::Draw(sf::RenderWindow &renderWindow) {
 	renderWindow.draw(_xonix);
 }
 
@@ -275,13 +276,13 @@ void Xonix::ResetScore() {
 }
 
 void Xonix::SetDirection() {
-	if (Keyboard::isKeyPressed(Keyboard::Right))
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 		_direction = 1;
-	if (Keyboard::isKeyPressed(Keyboard::Left))
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 		_direction = -1;
-	if (Keyboard::isKeyPressed(Keyboard::Up))
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
 		_direction = -2;
-	if (Keyboard::isKeyPressed(Keyboard::Down))
+	if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
 		_direction = 2;
 }
 
@@ -297,7 +298,7 @@ void Xonix::IncreaseLive() {
 	_countLives++;
 }
 
-void Xonix::Move(RenderWindow &renderWindow) {
+void Xonix::Move(sf::RenderWindow &renderWindow) {
 	int x, y;
 	x = _x;
 	y = _y;
@@ -341,7 +342,7 @@ void Xonix::Move(RenderWindow &renderWindow) {
 			.setFillColor(_trackColor);
 
 		_field->_field[(x - _field->_xOffset) / 10][(y - _field->_yOffset) / 10]
-			.setSize(Vector2f(_field->_distanceBetweenCells, _field->_distanceBetweenCells));
+			.setSize(sf::Vector2f(_field->_distanceBetweenCells, _field->_distanceBetweenCells));
 	}
 
 	if (_field->_field[(_x - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _field->GetLandColor() && _inSea) {
@@ -425,15 +426,15 @@ class LandEnemy {
 		_x,
 		_y;
 
-	Texture _landEnemyTexture;
-	Sprite _landEnemy;
-	String _pathToTexture = "Images/enemy_in_land.png";
+	sf::Texture _landEnemyTexture;
+	sf::Sprite _landEnemy;
+	sf::String _pathToTexture = "Images/enemy_in_land.png";
 
 	Field *_field;
 	Xonix *_xonix;
 
-	Color _seaColor = Color(0, 0, 0);
-	Color _trackColor = Color(144, 18, 144);
+	sf::Color _seaColor = sf::Color(0, 0, 0);
+	sf::Color _trackColor = sf::Color(144, 18, 144);
 
 public:
 	LandEnemy(Field *field, Xonix *xonix) {
@@ -461,7 +462,7 @@ public:
 			_field->_distanceBetweenCells / (float)_landEnemyTexture.getSize().y);
 	}
 
-	void Draw(RenderWindow &renderWindow) {
+	void Draw(sf::RenderWindow &renderWindow) {
 		renderWindow.draw(_landEnemy);
 	}
 
@@ -495,17 +496,17 @@ public:
 };
 
 class Info {
-	Text _gameStart;
-	Text _gameOver;
-	Text _hint;
-	Text _score;
-	Text _lvl;
-	Text _xn;
-	Text _full;
-	Font _font;
-	String _pathToFont;
-	Vector2i _position;
-	Color _fontColor = Color(144, 18, 144);
+	sf::Text _gameStart;
+	sf::Text _gameOver;
+	sf::Text _hint;
+	sf::Text _score;
+	sf::Text _lvl;
+	sf::Text _xn;
+	sf::Text _full;
+	sf::Font _font;
+	sf::String _pathToFont;
+	sf::Vector2i _position;
+	sf::Color _fontColor = sf::Color(144, 18, 144);
 
 	std::string _textGameStart;
 	std::string _textGameOver;
@@ -517,13 +518,13 @@ class Info {
 
 	Field *_field;
 
-	FloatRect gameStart;
-	FloatRect gameOver;
-	FloatRect hint;
-	FloatRect scoreRect;
-	FloatRect lvlRect;
-	FloatRect xnRect;
-	FloatRect fullRect;
+	sf::FloatRect gameStart;
+	sf::FloatRect gameOver;
+	sf::FloatRect hint;
+	sf::FloatRect scoreRect;
+	sf::FloatRect lvlRect;
+	sf::FloatRect xnRect;
+	sf::FloatRect fullRect;
 
 public:
 	Info(Field *field) {
@@ -541,7 +542,7 @@ public:
 		_score.setFont(_font);
 		_score.setString(_textScore);
 		_score.setCharacterSize(18);
-		_score.setFillColor(Color::White);
+		_score.setFillColor(sf::Color::White);
 		_score.setOutlineColor(_fontColor);
 		_score.setOutlineThickness(2);
 
@@ -549,7 +550,7 @@ public:
 		_lvl.setFont(_font);
 		_lvl.setString(_textLvl);
 		_lvl.setCharacterSize(18);
-		_lvl.setFillColor(Color::White);
+		_lvl.setFillColor(sf::Color::White);
 		_lvl.setOutlineColor(_fontColor);
 		_lvl.setOutlineThickness(2);
 
@@ -557,7 +558,7 @@ public:
 		_xn.setFont(_font);
 		_xn.setString(_textXn);
 		_xn.setCharacterSize(18);
-		_xn.setFillColor(Color::White);
+		_xn.setFillColor(sf::Color::White);
 		_xn.setOutlineColor(_fontColor);
 		_xn.setOutlineThickness(2);
 
@@ -565,7 +566,7 @@ public:
 		_full.setFont(_font);
 		_full.setString(_textFull);
 		_full.setCharacterSize(18);
-		_full.setFillColor(Color::White);
+		_full.setFillColor(sf::Color::White);
 		_full.setOutlineColor(_fontColor);
 		_full.setOutlineThickness(2);
 
@@ -574,7 +575,7 @@ public:
 		_gameStart.setFont(_font);
 		_gameStart.setString(_textGameStart);
 		_gameStart.setCharacterSize(55);
-		_gameStart.setFillColor(Color::White);
+		_gameStart.setFillColor(sf::Color::White);
 		_gameStart.setOutlineColor(_fontColor);
 		_gameStart.setOutlineThickness(4);
 		gameStart = _gameStart.getLocalBounds();
@@ -586,7 +587,7 @@ public:
 		_gameOver.setFont(_font);
 		_gameOver.setString(_textGameOver);
 		_gameOver.setCharacterSize(55);
-		_gameOver.setFillColor(Color::White);
+		_gameOver.setFillColor(sf::Color::White);
 		_gameOver.setOutlineColor(_fontColor);
 		_gameOver.setOutlineThickness(4);
 		gameOver = _gameOver.getLocalBounds();
@@ -598,7 +599,7 @@ public:
 		_hint.setFont(_font);
 		_hint.setString(_textHint);
 		_hint.setCharacterSize(18);
-		_hint.setFillColor(Color::White);
+		_hint.setFillColor(sf::Color::White);
 		_hint.setOutlineColor(_fontColor);
 		_hint.setOutlineThickness(2);
 		hint = _hint.getLocalBounds();
@@ -607,7 +608,7 @@ public:
 
 	}
 
-	void SetPosition(RenderWindow &renderWindow) {
+	void SetPosition(sf::RenderWindow &renderWindow) {
 		scoreRect = _score.getLocalBounds();
 		lvlRect = _lvl.getLocalBounds();
 		xnRect = _xn.getLocalBounds();
@@ -658,19 +659,19 @@ public:
 		_textXn = "Xn: ";
 	}
 
-	void DrawGameStart(RenderWindow &renderWindow) {
+	void DrawGameStart(sf::RenderWindow &renderWindow) {
 		renderWindow.draw(_gameStart);
 	}
 
-	void DrawGameOver(RenderWindow &renderWindow) {
+	void DrawGameOver(sf::RenderWindow &renderWindow) {
 		renderWindow.draw(_gameOver);
 	}
 
-	void DrawHint(RenderWindow &renderWindow) {
+	void DrawHint(sf::RenderWindow &renderWindow) {
 		renderWindow.draw(_hint);
 	}
 
-	void DrawScore(int score, RenderWindow &renderWindow) {
+	void DrawScore(int score, sf::RenderWindow &renderWindow) {
 		std::string text = _textScore;
 		text += toString(score);
 		_score.setString(text);
@@ -679,7 +680,7 @@ public:
 		renderWindow.draw(_score);
 	}
 
-	void DrawFull(int full, RenderWindow &renderWindow) {
+	void DrawFull(int full, sf::RenderWindow &renderWindow) {
 		std::string text = _textFull;
 		text += toString(full);
 		text += "%";
@@ -689,7 +690,7 @@ public:
 		renderWindow.draw(_full);
 	}
 
-	void DrawXn(int xn, RenderWindow &renderWindow) {
+	void DrawXn(int xn, sf::RenderWindow &renderWindow) {
 		std::string text = _textXn;
 		text += toString(xn);
 		_xn.setString(text);
@@ -698,7 +699,7 @@ public:
 		renderWindow.draw(_xn);
 	}
 
-	void DrawLevel(int level, RenderWindow &renderWindow) {
+	void DrawLevel(int level, sf::RenderWindow &renderWindow) {
 		std::string text = _textLvl;
 		text += toString(level);
 		_lvl.setString(text);
@@ -730,12 +731,15 @@ class StateManager {
 	SeaEnemy* _seaEnemy;
 	LandEnemy *_landEnemy;
 
+	std::vector<SeaEnemy*>* _seaEnemies;
+
 public:
-	StateManager(Field *field, Xonix *xonix, SeaEnemy *seaEnemy, LandEnemy *landEnemy) {
+	StateManager(Field *field, Xonix *xonix, std::vector<SeaEnemy*>* seaEnemies, LandEnemy *landEnemy) {
 		_field = field;
 		_xonix = xonix;
-		_seaEnemy = seaEnemy;
+		//_seaEnemy = seaEnemy;
 		_landEnemy = landEnemy;
+		_seaEnemies = seaEnemies;
 	}
 
 	GameStates GetState() {
@@ -750,10 +754,10 @@ public:
 		_gameStates = state;
 	}
 
-	void UpdateStates(RenderWindow &renderWindow) {
+	void UpdateStates(sf::RenderWindow &renderWindow) {
 		// Next level
 		if (_xonix->GetSeaPercent() >= _winLevelPercent) {
-			_gameStates = NEXT_LEVEL;
+			//_gameStates = NEXT_LEVEL;
 			_level++;
 			_xonix->IncreaseLive();
 
@@ -762,6 +766,7 @@ public:
 			_seaEnemy->Init();
 			_landEnemy->Init();
 			_xonix->FillTrackArea();
+			_gameStates = PLAYING;
 		}
 		// Game over
 		if (_xonix->GetIsSelfCross() || 
@@ -788,32 +793,35 @@ public:
 };
 
 int main() {
-	RenderWindow window(VideoMode(800, 600), "Xonix");
+	sf::RenderWindow window(sf::VideoMode(800, 600), "Xonix");
 	window.setFramerateLimit(30); // Temporary solution
 
 	Field *field = new Field(window);
 	SeaEnemy *seaEnemy = new SeaEnemy(field);
-	Xonix *xonix = new Xonix(field, seaEnemy);
+
+	std::vector<SeaEnemy*> seaEnemies;
+
+	Xonix *xonix = new Xonix(field, &seaEnemies);
 	seaEnemy->SetXonix(xonix);
 	LandEnemy *landEnemy = new LandEnemy(field, xonix);
 	Info info(field);
 
-	StateManager stateManager(field, xonix, seaEnemy, landEnemy);
+	StateManager stateManager(field, xonix, &seaEnemies, landEnemy);
 	stateManager.SetState(INIT_DEPENDENCIES);
 
 	while (window.isOpen()) {
-		Event event;
+		sf::Event event;
 		while (window.pollEvent(event)) {
-			if (event.type == Event::Closed || Keyboard::isKeyPressed(Keyboard::Escape))
+			if (event.type == sf::Event::Closed || sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
 				window.close();
 
 			if (stateManager.GetState() == PLAYING)
 				xonix->SetDirection();
 
-			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == START_GAME)
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && stateManager.GetState() == START_GAME)
 				stateManager.SetState(PLAYING);
 
-			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == GAME_OVER) {
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space) && stateManager.GetState() == GAME_OVER) {
 				field->Init(window);
 				seaEnemy->Init();
 				landEnemy->Init();
@@ -870,7 +878,7 @@ int main() {
 			xonix->Init();
 			field->ClearTrack();
 			landEnemy->Init();
-			sleep(milliseconds(1000));
+			sf::sleep(sf::milliseconds(1000));
 			stateManager.SetState(PLAYING);
 		}
 
