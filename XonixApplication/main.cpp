@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string> 
 #include <sstream>
+#include <ctime>
 
 using namespace sf;
 
@@ -11,6 +12,29 @@ std::string toString(T val) {
 	oss << val;
 	return oss.str();
 }
+
+
+class Timer {
+	int _startTime,
+		_endTime,
+		_delay = 60;
+
+public:
+	void Init() {
+		_startTime = clock() / 1000;
+		_endTime = _startTime + _delay;
+	}
+
+	bool TimeIsOver() {
+		if (clock() / 1000 > _endTime)
+			return true;
+		return false;
+	}
+
+	int CurrentTime() {
+		return _endTime - clock() / 1000;
+	}
+};
 
 class Field {
 	static const int WIDTH = 70;
@@ -228,7 +252,11 @@ public:
 
 	bool IsHitTrackOrXonix(Xonix *xonix) {
 		if (_field->_field[(_x - _field->_xOffset) / 10][(_y - _field->_yOffset) / 10].getFillColor() == _trackColor)	return true;
-		if (_x + _dx == xonix->GetX() && _y + _dy == xonix->GetY()) return true;
+		if (_x + _dx == xonix->GetX() && _y + _dy == xonix->GetY() && 
+			_field->_field[(xonix->GetX() - _field->_xOffset) / 10][(xonix->GetY() - _field->_yOffset) / 10]
+				.getFillColor() != _landColor) {
+			return true;
+		}
 		return false;
 	}
 };
@@ -500,6 +528,7 @@ class Info {
 	Text _lvl;
 	Text _xn;
 	Text _full;
+	Text _time;
 	Font _font;
 	String _pathToFont;
 	Vector2i _position;
@@ -512,6 +541,7 @@ class Info {
 	std::string _textLvl;
 	std::string _textXn;
 	std::string _textFull;
+	std::string _textTime;
 
 	Field *_field;
 
@@ -522,6 +552,7 @@ class Info {
 	FloatRect lvlRect;
 	FloatRect xnRect;
 	FloatRect fullRect;
+	FloatRect timeRect;
 
 public:
 	Info(Field *field) {
@@ -567,6 +598,14 @@ public:
 		_full.setOutlineColor(_fontColor);
 		_full.setOutlineThickness(2);
 
+		// init timer
+		_time.setFont(_font);
+		_time.setString(_textTime);
+		_time.setCharacterSize(18);
+		_time.setFillColor(Color::White);
+		_time.setOutlineColor(_fontColor);
+		_time.setOutlineThickness(2);
+
 		// init game start
 		_textGameStart = "Start Game";
 		_gameStart.setFont(_font);
@@ -610,8 +649,9 @@ public:
 		lvlRect = _lvl.getLocalBounds();
 		xnRect = _xn.getLocalBounds();
 		fullRect = _full.getLocalBounds();
+		timeRect = _time.getLocalBounds();
 
-		float countTextElement = 4;
+		float countTextElement = 5;
 
 		float windowWidth = _field->GetWindowSize().x;
 		float windowHeight = _field->GetWindowSize().y;
@@ -624,9 +664,11 @@ public:
 		float offsetY = (windowHeight - fieldWidth) / 2.;
 		float positionTextY = windowHeight + (offsetY / 2.);
 
-		float widthText = scoreRect.width + lvlRect.width + xnRect.width + fullRect.width;
+		float widthText = scoreRect.width + lvlRect.width + xnRect.width + fullRect.width + timeRect.width;
+		std::cout << "widthText: " << widthText << "\n";
 
 		float offsetText = (fieldWidth - widthText) / (countTextElement - 1);
+		std::cout << "offsetText: " << offsetText << "\n\n";
 
 		// <-- score
 		float positionTextX = offsetX;
@@ -647,6 +689,11 @@ public:
 		positionTextX += (xnRect.width / 2.) + offsetText + (fullRect.width / 2.);
 		_full.setPosition(positionTextX, positionTextY);
 		// -->
+
+		// <-- time
+		positionTextX += (fullRect.width / 2.) + offsetText + (timeRect.width / 2.);
+		_time.setPosition(positionTextX, positionTextY);
+		// -->
 	}
 
 	void SetDefaulValue() {
@@ -654,6 +701,7 @@ public:
 		_textFull = "Full: ";
 		_textLvl = "Lvl: ";
 		_textXn = "Xn: ";
+		_textTime = "Time: ";
 	}
 
 	void DrawGameStart(RenderWindow &renderWindow) {
@@ -704,7 +752,17 @@ public:
 		_lvl.setOrigin(scoreRect.width / 2, scoreRect.height / 2);
 		renderWindow.draw(_lvl);
 	}
+
+	void DrawTime(int time, RenderWindow &renderWindow) {
+		std::string text = _textTime;
+		text += toString(time);
+		_time.setString(text);
+		scoreRect = _time.getLocalBounds();
+		_time.setOrigin(scoreRect.width / 2, scoreRect.height / 2);
+		renderWindow.draw(_time);
+	}
 };
+
 enum GameStates {
 	INIT_DEPENDENCIES,
 	START_GAME,
@@ -723,18 +781,20 @@ class StateManager {
 	GameStates _gameStates;
 	GameStates _prevState = EMPTY_STATE;
 
-	Field* _field;
-	Xonix* _xonix;
+	Field *_field;
+	Xonix *_xonix;
 	LandEnemy *_landEnemy;
+	Timer *_timer;
 
 	std::vector<SeaEnemy*>* _seaEnemies;
 
 public:
-	StateManager(Field *field, Xonix *xonix, std::vector<SeaEnemy*>* seaEnemies, LandEnemy *landEnemy) {
+	StateManager(Field *field, Xonix *xonix, std::vector<SeaEnemy*> *seaEnemies, LandEnemy *landEnemy, Timer *timer) {
 		_field = field;
 		_xonix = xonix;
 		_seaEnemies = seaEnemies;
 		_landEnemy = landEnemy;
+		_timer = timer;
 	}
 
 	GameStates GetState() {
@@ -775,6 +835,7 @@ public:
 		// Game over
 		if (_xonix->GetIsSelfCross() ||
 			SeaEnemiesIsHitTrackOrXonix() ||
+			_timer->TimeIsOver() ||
 			_landEnemy->IsHitXonix() &&
 			_xonix->GetCountLives() >= 1 &&
 			_gameStates != _prevState) {
@@ -784,6 +845,7 @@ public:
 			_prevState = _gameStates;
 
 			_xonix->DecreaseLive();
+			_timer->Init();
 		}
 		if (_xonix->GetCountLives() <= 0 && _gameStates != _prevState) {
 			_gameStates = GAME_OVER;
@@ -796,23 +858,22 @@ public:
 	}
 };
 
+
 int main() {
 	RenderWindow window(VideoMode(800, 600), "Xonix");
 	window.setFramerateLimit(30); // Temporary solution
 
 	Field *field = new Field(window);
 
-	SeaEnemy *seaEnemy = new SeaEnemy(field);
 	std::vector<SeaEnemy*> seaEnemies;
-
-	Xonix *xonix = new Xonix(field, &seaEnemies);
-
 	seaEnemies.push_back(new SeaEnemy(field));
 	
+	Xonix *xonix = new Xonix(field, &seaEnemies);
 	LandEnemy *landEnemy = new LandEnemy(field, xonix);
+	
+	Timer *timer = new Timer();
 	Info info(field);
-
-	StateManager stateManager(field, xonix, &seaEnemies, landEnemy);
+	StateManager stateManager(field, xonix, &seaEnemies, landEnemy, timer);
 	stateManager.SetState(INIT_DEPENDENCIES);
 
 	while (window.isOpen()) {
@@ -851,6 +912,7 @@ int main() {
 			xonix->Init();
 			landEnemy->Init();
 			info.Init();
+			timer->Init();
 
 			for (int i = 0; i < seaEnemies.size(); i++) {
 				seaEnemies[i]->Init();
@@ -886,6 +948,7 @@ int main() {
 			info.DrawFull(xonix->GetSeaPercent(), window);
 			info.DrawXn(xonix->GetCountLives(), window);
 			info.DrawLevel(stateManager.GetLevel(), window);
+			info.DrawTime(timer->CurrentTime(), window);
 			info.SetPosition(window);
 		}
 
@@ -914,6 +977,7 @@ int main() {
 		// Next level
 		if (stateManager.GetState() == NEXT_LEVEL) {
 			seaEnemies.push_back(new SeaEnemy(field));
+			timer->Init();
 			for (int i = seaEnemies.size() - 1; i < seaEnemies.size(); i++) {
 				seaEnemies[i]->Init();
 			}
@@ -930,6 +994,8 @@ int main() {
 
 			seaEnemies.clear();
 			seaEnemies.push_back(new SeaEnemy(field));
+
+			timer->Init();
 
 			stateManager.ResetLevel();
 		}
