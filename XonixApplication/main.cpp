@@ -717,7 +717,7 @@ enum GameStates {
 };
 
 class StateManager {
-	int _winLevelPercent = 60;
+	int _winLevelPercent = 52;
 	int _level = 1;
 
 	GameStates _gameStates;
@@ -761,25 +761,19 @@ public:
 		if (_xonix->GetSeaPercent() >= _winLevelPercent) {
 			_level++;
 			_xonix->IncreaseLive();
-
-			_field->Init(renderWindow);
 			_xonix->Init();
+			_field->Init(renderWindow);
+			_landEnemy->Init();
 
 			for (int i = 0; i < _seaEnemies->size(); i++) {
 				_seaEnemies->at(i)->Init();
 			}
 
-			_landEnemy->Init();
 			_xonix->FillTrackArea();
-
-			//seaEnemies.push_back(new SeaEnemy(field));
-
 			_gameStates = NEXT_LEVEL;
-			//_gameStates = PLAYING;
 		}
 		// Game over
 		if (_xonix->GetIsSelfCross() ||
-			//_seaEnemy->IsHitTrackOrXonix() ||
 			SeaEnemiesIsHitTrackOrXonix() ||
 			_landEnemy->IsHitXonix() &&
 			_xonix->GetCountLives() >= 1 &&
