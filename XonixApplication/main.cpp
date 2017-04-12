@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <iostream>
 #include <string> 
 #include <sstream>
@@ -665,10 +666,8 @@ public:
 		float positionTextY = windowHeight + (offsetY / 2.);
 
 		float widthText = scoreRect.width + lvlRect.width + xnRect.width + fullRect.width + timeRect.width;
-		std::cout << "widthText: " << widthText << "\n";
 
 		float offsetText = (fieldWidth - widthText) / (countTextElement - 1);
-		std::cout << "offsetText: " << offsetText << "\n\n";
 
 		// <-- score
 		float positionTextX = offsetX;
@@ -859,7 +858,7 @@ public:
 };
 
 
-int main() {
+int WinMain() {
 	RenderWindow window(VideoMode(800, 600), "Xonix");
 	window.setFramerateLimit(30); // Temporary solution
 
@@ -870,11 +869,29 @@ int main() {
 	
 	Xonix *xonix = new Xonix(field, &seaEnemies);
 	LandEnemy *landEnemy = new LandEnemy(field, xonix);
-	
+
 	Timer *timer = new Timer();
 	Info info(field);
 	StateManager stateManager(field, xonix, &seaEnemies, landEnemy, timer);
 	stateManager.SetState(INIT_DEPENDENCIES);
+	
+	Music music;
+	music.openFromFile("Sounds/Xonix_Music.wav");
+	music.setLoop(true);
+
+	Sound loseSound;
+	SoundBuffer loseBuffer;
+	loseBuffer.loadFromFile("Sounds/Xonix_Lose.wav");
+	loseSound.setBuffer(loseBuffer);
+
+	Sound winSound;
+	SoundBuffer winBuffer;
+	winBuffer.loadFromFile("Sounds/Xonix_Win.wav");
+	winSound.setBuffer(winBuffer);
+
+	// For run once 
+	GameStates prevState = EMPTY_STATE;
+
 
 	while (window.isOpen()) {
 		Event event;
@@ -885,11 +902,15 @@ int main() {
 			if (stateManager.GetState() == PLAYING)
 				xonix->SetDirection();
 
-			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == START_GAME)
+			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == START_GAME) {
+				music.stop();
 				stateManager.SetState(PLAYING);
+			}
 
 			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == GAME_OVER) {
+				music.stop();
 				field->Init(window);
+				prevState = EMPTY_STATE;
 
 				for (int i = 0; i < seaEnemies.size(); i++) {
 					seaEnemies[i]->Init();
@@ -898,7 +919,6 @@ int main() {
 				landEnemy->Init();
 				stateManager.SetState(PLAYING);
 			}
-
 		}
 
 		window.clear();
@@ -908,6 +928,8 @@ int main() {
 
 		// Init
 		if (stateManager.GetState() == INIT_DEPENDENCIES) {
+			music.play();
+
 			field->Init(window);
 			xonix->Init();
 			landEnemy->Init();
@@ -954,6 +976,8 @@ int main() {
 
 		// Lost live
 		if (stateManager.GetState() == LOST_LIVE) {
+			loseSound.play();
+
 			xonix->Init();
 			field->ClearTrack();
 			landEnemy->Init();
@@ -976,6 +1000,9 @@ int main() {
 
 		// Next level
 		if (stateManager.GetState() == NEXT_LEVEL) {
+			winSound.play();
+			sleep(milliseconds(1000));
+
 			seaEnemies.push_back(new SeaEnemy(field));
 			timer->Init();
 			for (int i = seaEnemies.size() - 1; i < seaEnemies.size(); i++) {
@@ -986,18 +1013,24 @@ int main() {
 
 		// Game Over
 		if (stateManager.GetState() == GAME_OVER) {
+			if (stateManager.GetState() != prevState) {
+				prevState = stateManager.GetState();
+				music.play();
+
+				xonix->ResetCountLives(3);
+				xonix->ResetScore();
+				xonix->ResetSeaArea();
+
+				seaEnemies.clear();
+				seaEnemies.push_back(new SeaEnemy(field));
+
+				timer->Init();
+
+				stateManager.ResetLevel();
+			}
+
 			info.DrawGameOver(window);
 			info.DrawHint(window);
-			xonix->ResetCountLives(3);
-			xonix->ResetScore();
-			xonix->ResetSeaArea();
-
-			seaEnemies.clear();
-			seaEnemies.push_back(new SeaEnemy(field));
-
-			timer->Init();
-
-			stateManager.ResetLevel();
 		}
 		window.display();
 	}
