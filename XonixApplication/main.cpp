@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string> 
 #include <sstream>
+#include <windows.h>
 #include <ctime>
 
 using namespace sf;
@@ -530,6 +531,7 @@ class Info {
 	Text _xn;
 	Text _full;
 	Text _time;
+	Text _highScore;
 	Font _font;
 	String _pathToFont;
 	Vector2i _position;
@@ -543,6 +545,7 @@ class Info {
 	std::string _textXn;
 	std::string _textFull;
 	std::string _textTime;
+	std::string _textHighScore;
 
 	Field *_field;
 
@@ -554,6 +557,7 @@ class Info {
 	FloatRect xnRect;
 	FloatRect fullRect;
 	FloatRect timeRect;
+	FloatRect highScoreRect;
 
 public:
 	Info(Field *field) {
@@ -606,6 +610,15 @@ public:
 		_time.setFillColor(Color::White);
 		_time.setOutlineColor(_fontColor);
 		_time.setOutlineThickness(2);
+
+		// init timer
+		_highScore.setFont(_font);
+		_highScore.setString(_textHighScore);
+		_highScore.setCharacterSize(18);
+		_highScore.setFillColor(Color::White);
+		_highScore.setOutlineColor(_fontColor);
+		_highScore.setOutlineThickness(2);
+		_highScore.setPosition(_field->GetWindowSize().x / 2, _field->_yOffset / 2);
 
 		// init game start
 		_textGameStart = "Start Game";
@@ -701,6 +714,7 @@ public:
 		_textLvl = "Lvl: ";
 		_textXn = "Xn: ";
 		_textTime = "Time: ";
+		_textHighScore = "High score: ";
 	}
 
 	void DrawGameStart(RenderWindow &renderWindow) {
@@ -760,6 +774,15 @@ public:
 		_time.setOrigin(scoreRect.width / 2, scoreRect.height / 2);
 		renderWindow.draw(_time);
 	}
+
+	void DrawHighScore(std::string highScore, RenderWindow &renderWindow) {
+		std::string text = _textHighScore;
+		text += highScore;
+		_highScore.setString(text);
+		highScoreRect = _highScore.getLocalBounds();
+		_highScore.setOrigin(highScoreRect.width / 2, highScoreRect.height / 2);
+		renderWindow.draw(_highScore);
+	}
 };
 
 enum GameStates {
@@ -774,7 +797,7 @@ enum GameStates {
 };
 
 class StateManager {
-	int _winLevelPercent = 52;
+	int _winLevelPercent = 75;
 	int _level = 1;
 
 	GameStates _gameStates;
@@ -845,8 +868,10 @@ public:
 
 			_xonix->DecreaseLive();
 			_timer->Init();
+
 		}
 		if (_xonix->GetCountLives() <= 0 && _gameStates != _prevState) {
+			// Once enter to condition
 			_gameStates = GAME_OVER;
 			_prevState = _gameStates;
 		}
@@ -857,8 +882,29 @@ public:
 	}
 };
 
+class HighScore {
+	const int BUFFER = 100;
+	TCHAR *_highScore = new TCHAR[BUFFER];
 
-int WinMain() {
+public:
+	HighScore() {
+		GetPrivateProfileString("Score", "best_result", "0", _highScore, BUFFER, "./config.ini");
+	}
+
+	void SetHighScore(int score) {
+		std::string string = toString(score);
+		_highScore[string.size()] = 0;
+		std::copy(string.begin(), string.end(), _highScore);
+		WritePrivateProfileString("Score", "best_result", _highScore, "./config.ini");
+	}
+
+	std::string GetHighScore() {
+		return toString(_highScore);
+	}
+};
+
+
+int main() {
 	RenderWindow window(VideoMode(800, 600), "Xonix");
 	window.setFramerateLimit(30); // Temporary solution
 
@@ -892,12 +938,14 @@ int WinMain() {
 	// For run once 
 	GameStates prevState = EMPTY_STATE;
 
+	HighScore *highScore = new HighScore();
 
 	while (window.isOpen()) {
 		Event event;
 		while (window.pollEvent(event)) {
-			if (event.type == Event::Closed || Keyboard::isKeyPressed(Keyboard::Escape))
+			if (event.type == Event::Closed || Keyboard::isKeyPressed(Keyboard::Escape)) {
 				window.close();
+			}
 
 			if (stateManager.GetState() == PLAYING)
 				xonix->SetDirection();
@@ -971,6 +1019,8 @@ int WinMain() {
 			info.DrawXn(xonix->GetCountLives(), window);
 			info.DrawLevel(stateManager.GetLevel(), window);
 			info.DrawTime(timer->CurrentTime(), window);
+			info.DrawHighScore(highScore->GetHighScore(), window);
+			//DrawHighScore
 			info.SetPosition(window);
 		}
 
@@ -1014,8 +1064,12 @@ int WinMain() {
 		// Game Over
 		if (stateManager.GetState() == GAME_OVER) {
 			if (stateManager.GetState() != prevState) {
+				// Once enter to condition
 				prevState = stateManager.GetState();
 				music.play();
+
+				// Save score
+				highScore->SetHighScore(xonix->GetScore());
 
 				xonix->ResetCountLives(3);
 				xonix->ResetScore();
