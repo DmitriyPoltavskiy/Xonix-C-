@@ -922,7 +922,7 @@ int main() {
 	stateManager.SetState(INIT_DEPENDENCIES);
 	
 	Music music;
-	music.openFromFile("Sounds/Xonix_Music.wav");
+	music.openFromFile("Sounds/Xonix_Music.wav"); 
 	music.setLoop(true);
 
 	Sound loseSound;
@@ -941,33 +941,6 @@ int main() {
 	HighScore *highScore = new HighScore();
 
 	while (window.isOpen()) {
-		Event event;
-		while (window.pollEvent(event)) {
-			if (event.type == Event::Closed || Keyboard::isKeyPressed(Keyboard::Escape)) {
-				window.close();
-			}
-
-			if (stateManager.GetState() == PLAYING)
-				xonix->SetDirection();
-
-			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == START_GAME) {
-				music.stop();
-				stateManager.SetState(PLAYING);
-			}
-
-			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == GAME_OVER) {
-				music.stop();
-				field->Init(window);
-				prevState = EMPTY_STATE;
-
-				for (int i = 0; i < seaEnemies.size(); i++) {
-					seaEnemies[i]->Init();
-				}
-
-				landEnemy->Init();
-				stateManager.SetState(PLAYING);
-			}
-		}
 
 		window.clear();
 
@@ -1069,6 +1042,7 @@ int main() {
 				music.play();
 
 				// Save score
+				if(xonix->GetScore() > std::stoi(highScore->GetHighScore()))
 				highScore->SetHighScore(xonix->GetScore());
 
 				xonix->ResetCountLives(3);
@@ -1085,6 +1059,43 @@ int main() {
 
 			info.DrawGameOver(window);
 			info.DrawHint(window);
+		}
+		Event event;
+		while (window.pollEvent(event)) {
+			if (event.type == Event::Closed || Keyboard::isKeyPressed(Keyboard::Escape)) {
+				window.close();
+
+				delete xonix;
+				delete field;
+				delete landEnemy;
+				delete timer;
+				delete highScore;
+				for (int i = seaEnemies.size() - 1; i >= 0; i--) {
+					delete seaEnemies[i];
+				}
+				seaEnemies.clear();
+			}// timer landenemy highscore
+
+			if (stateManager.GetState() == PLAYING)
+				xonix->SetDirection();
+
+			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == START_GAME) {
+				music.stop();
+				stateManager.SetState(PLAYING);
+			}
+
+			if (Keyboard::isKeyPressed(Keyboard::Space) && stateManager.GetState() == GAME_OVER) {
+				music.stop();
+				field->Init(window);
+				prevState = EMPTY_STATE;
+
+				for (int i = 0; i < seaEnemies.size(); i++) {
+					seaEnemies[i]->Init();
+				}
+
+				landEnemy->Init();
+				stateManager.SetState(PLAYING);
+			}
 		}
 		window.display();
 	}
